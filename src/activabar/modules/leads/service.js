@@ -66,6 +66,19 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
     rewardLabel || restaurant.default_reward || "detalle de bienvenida"
   ).trim();
 
+  const existingLead = await db.one(
+    `SELECT
+        id,
+        opt_out_at,
+        deleted_at,
+        consent_at,
+        claim_code
+     FROM leads
+     WHERE restaurant_id = $1
+       AND phone_e164 = $2`,
+    [restaurant.id, normalizedPhone]
+  );
+
   await db.query(
     `INSERT INTO leads (
        restaurant_id, phone_e164, source_qr, reward_label,
@@ -82,16 +95,10 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
      ON CONFLICT (restaurant_id, phone_e164) DO UPDATE SET
        source_qr = EXCLUDED.source_qr,
        reward_label = EXCLUDED.reward_label,
-       consent_version = EXCLUDED.consent_version,
-       consent_text = EXCLUDED.consent_text,
-       consent_ip = EXCLUDED.consent_ip,
-       consent_user_agent = EXCLUDED.consent_user_agent,
        claim_code = EXCLUDED.claim_code,
        claim_code_sent_at = NULL,
        claim_code_redeemed_at = NULL,
-       consent_at = CURRENT_TIMESTAMP,
        redeemed_at = NULL,
-       opt_out_at = NULL,
        deleted_at = NULL,
        deleted_reason = NULL,
        updated_at = CURRENT_TIMESTAMP`,
@@ -116,6 +123,7 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
         reward_label,
         claim_code,
         claim_code_sent_at,
+        opt_out_at,
         created_at
      FROM leads
      WHERE restaurant_id = $1
@@ -126,8 +134,9 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
 
   let confirmationSent = false;
   let confirmationError = null;
+  const remainsOptedOut = Boolean(lead.opt_out_at);
 
-  if (sendWelcome && env.welcomeConfirmationEnabled) {
+  if (sendWelcome && env.welcomeConfirmationEnabled && !remainsOptedOut) {
     const confirmationBody = renderTemplate(
       restaurant.welcome_template || DEFAULT_WELCOME_TEMPLATE,
       {
@@ -161,6 +170,8 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
     lead,
     confirmationSent,
     confirmationError,
+    remainsOptedOut,
+    wasExistingLead: Boolean(existingLead),
   };
 }
 

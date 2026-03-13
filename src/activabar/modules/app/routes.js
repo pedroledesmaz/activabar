@@ -157,6 +157,9 @@ function renderRestaurantPage({
               <p class="muted">Codigo: <code>${escapeHtml(lead.claim_code || "-")}</code></p>
               <p class="muted">Recompensa: ${escapeHtml(lead.reward_label || "-")}</p>
               <p class="muted">Origen: ${escapeHtml(lead.source_qr || "-")}</p>
+              <p class="muted">Estado: ${escapeHtml(
+                lead.opt_out_at ? "Baja activa" : "Activo"
+              )}</p>
             </article>
           `
         )
@@ -442,9 +445,11 @@ router.post("/app/restaurants/:slug/leads", requireWebAuth, async (req, res, nex
       sendWelcome: req.body.sendWelcome === "on",
     });
 
-    const success = result.confirmationSent
-      ? `Lead creado y WhatsApp enviado a ${result.lead.phone_e164}`
-      : `Lead creado: ${result.lead.phone_e164}`;
+    const success = result.remainsOptedOut
+      ? `Lead actualizado: ${result.lead.phone_e164}. Sigue dado de baja hasta que envie START o ALTA.`
+      : result.confirmationSent
+        ? `Lead creado y WhatsApp enviado a ${result.lead.phone_e164}`
+        : `Lead creado: ${result.lead.phone_e164}`;
     const redirectUrl = `/app/restaurants/${encodeURIComponent(
       restaurant.slug
     )}?success=${encodeURIComponent(success)}`;
