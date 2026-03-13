@@ -65,7 +65,12 @@ async function getRestaurantSummary(restaurantId) {
     `SELECT
         (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL) AS total_leads,
         (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NULL) AS active_leads,
-        (SELECT COUNT(1) FROM promotions WHERE restaurant_id = $1) AS total_promotions
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NOT NULL) AS opted_out_leads,
+        (SELECT COUNT(1) FROM promotions WHERE restaurant_id = $1) AS total_promotions,
+        (SELECT COALESCE(SUM(CASE WHEN d.status = 'sent' THEN 1 ELSE 0 END), 0)
+         FROM promotion_deliveries d
+         JOIN promotions p ON p.id = d.promotion_id
+         WHERE p.restaurant_id = $1) AS total_sent_deliveries
      `,
     [restaurantId]
   );

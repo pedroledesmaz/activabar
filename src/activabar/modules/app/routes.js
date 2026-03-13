@@ -21,10 +21,21 @@ const { listLeadsByRestaurant, createLead } = require("../leads/service");
 const {
   listPromotionsByRestaurant,
   createPromotion,
+  countEligibleLeadsForPromotion,
   dispatchPromotion,
 } = require("../promotions/service");
 
 const router = express.Router();
+
+function formatDateTime(value) {
+  if (!value) return "No disponible";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
 
 function renderLoginPage(errorMessage = "") {
   const alert = errorMessage
@@ -73,6 +84,7 @@ function renderAppPage({ operator, restaurants, errorMessage, successMessage }) 
               <p class="muted">Recompensa: ${escapeHtml(
                 restaurant.default_reward || "Sin definir"
               )}</p>
+              <p class="muted">Creado: ${escapeHtml(formatDateTime(restaurant.created_at))}</p>
               <p><a href="/app/restaurants/${encodeURIComponent(
                 restaurant.slug
               )}" style="color: var(--accent); text-decoration: none; font-weight: 700;">Abrir restaurante</a></p>
@@ -160,6 +172,13 @@ function renderRestaurantPage({
               <p class="muted">Estado: ${escapeHtml(
                 lead.opt_out_at ? "Baja activa" : "Activo"
               )}</p>
+              <p class="muted">Alta: ${escapeHtml(formatDateTime(lead.created_at))}</p>
+              <p class="muted">Bienvenida enviada: ${escapeHtml(formatDateTime(lead.claim_code_sent_at))}</p>
+              ${
+                lead.opt_out_at
+                  ? `<p class="muted">Baja: ${escapeHtml(formatDateTime(lead.opt_out_at))}</p>`
+                  : ""
+              }
             </article>
           `
         )
@@ -176,9 +195,12 @@ function renderRestaurantPage({
               <p class="muted">Enviados: ${escapeHtml(promotion.sent_count)} | Fallidos: ${escapeHtml(
                 promotion.failed_count
               )}</p>
+              <p class="muted">Elegibles ahora: ${escapeHtml(promotion.eligible_now || 0)}</p>
               <p class="muted">Maximo: ${escapeHtml(promotion.max_messages)} | Coste oferta: ${escapeHtml(
                 promotion.offer_cost_eur
               )} EUR</p>
+              <p class="muted">Creada: ${escapeHtml(formatDateTime(promotion.created_at))}</p>
+              <p class="muted">Ultimo envio: ${escapeHtml(formatDateTime(promotion.sent_at))}</p>
               <form method="post" action="/app/promotions/${promotion.id}/dispatch" class="inline">
                 <button type="submit" class="secondary">Enviar ahora</button>
               </form>
@@ -212,11 +234,15 @@ function renderRestaurantPage({
             <h2>${escapeHtml(summary.total_leads || 0)}</h2>
             <p class="muted">Leads totales</p>
             <p class="muted">Activos: ${escapeHtml(summary.active_leads || 0)}</p>
+            <p class="muted">Bajas: ${escapeHtml(summary.opted_out_leads || 0)}</p>
             <p class="muted">Promociones: ${escapeHtml(summary.total_promotions || 0)}</p>
+            <p class="muted">Mensajes enviados: ${escapeHtml(summary.total_sent_deliveries || 0)}</p>
           </section>
           <section class="card">
             <p class="muted">Configuracion</p>
             <h2>${escapeHtml(restaurant.default_reward || "Sin recompensa base")}</h2>
+            <p class="muted">Slug: <code>${escapeHtml(restaurant.slug)}</code></p>
+            <p class="muted">Creado: ${escapeHtml(formatDateTime(restaurant.created_at))}</p>
             <p class="muted">Define aqui la operativa inicial del restaurante.</p>
           </section>
         </div>
@@ -402,13 +428,20 @@ router.get("/app/restaurants/:slug", requireWebAuth, async (req, res, next) => {
       listPromotionsByRestaurant(restaurant.id),
     ]);
 
+    const promotionsWithEligibility = await Promise.all(
+      promotions.map(async (promotion) => ({
+        ...promotion,
+        eligible_now: await countEligibleLeadsForPromotion({ promotionId: promotion.id }),
+      }))
+    );
+
     return res.type("html").send(
       renderRestaurantPage({
         operator: req.auth,
         restaurant,
         summary,
         leads,
-        promotions,
+        promotions: promotionsWithEligibility,
         errorMessage: String(req.query.error || "").trim(),
         successMessage: String(req.query.success || "").trim(),
       })

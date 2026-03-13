@@ -1,6 +1,7 @@
 const express = require("express");
 const logger = require("./lib/logger");
 const { requestContext } = require("./middleware/request-context");
+const { securityHeaders } = require("./middleware/security-headers");
 const appRoutes = require("./modules/app/routes");
 const healthRoutes = require("./modules/health/routes");
 const authRoutes = require("./modules/auth/routes");
@@ -10,9 +11,11 @@ const twilioWebhookRoutes = require("./modules/webhooks/twilio");
 function createApp() {
   const app = express();
 
+  app.disable("x-powered-by");
   app.set("trust proxy", 1);
-  app.use(express.urlencoded({ extended: false }));
-  app.use(express.json());
+  app.use(express.urlencoded({ extended: false, limit: "100kb" }));
+  app.use(express.json({ limit: "100kb" }));
+  app.use(securityHeaders);
   app.use(requestContext);
 
   app.use("/", appRoutes);

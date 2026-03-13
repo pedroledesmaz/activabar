@@ -116,6 +116,9 @@ function renderPage({ title, body }) {
         flex-wrap: wrap;
       }
       form.inline { margin: 0; }
+      a {
+        color: inherit;
+      }
       code {
         background: rgba(255, 255, 255, 0.06);
         border-radius: 8px;

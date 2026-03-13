@@ -99,6 +99,65 @@ async function createPromotion(input) {
   );
 }
 
+async function countEligibleLeadsForPromotion({ promotionId }) {
+  const promotion = await db.one(
+    `SELECT id, restaurant_id, max_messages
+     FROM promotions
+     WHERE id = $1`,
+    [promotionId]
+  );
+
+  if (!promotion) {
+    return 0;
+  }
+
+  const row = await db.one(
+    `SELECT COUNT(1) AS total
+     FROM (
+       SELECT l.id
+       FROM leads l
+       WHERE l.restaurant_id = $1
+         AND l.deleted_at IS NULL
+         AND l.opt_out_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1
+           FROM promotion_deliveries d
+           WHERE d.promotion_id = $2
+             AND d.lead_id = l.id
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM promotion_deliveries d2
+           JOIN promotions p2 ON p2.id = d2.promotion_id
+           WHERE d2.lead_id = l.id
+             AND d2.status = 'sent'
+             AND p2.restaurant_id = $1
+             AND d2.created_at >= CURRENT_TIMESTAMP - ($3 * INTERVAL '1 hour')
+         )
+         AND (
+           SELECT COUNT(1)
+           FROM promotion_deliveries d3
+           JOIN promotions p3 ON p3.id = d3.promotion_id
+           WHERE d3.lead_id = l.id
+             AND d3.status = 'sent'
+             AND p3.restaurant_id = $1
+             AND d3.created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+         ) < $4
+       ORDER BY l.created_at ASC
+       LIMIT $5
+     ) eligible`,
+    [
+      promotion.restaurant_id,
+      promotion.id,
+      env.messageCooldownHours,
+      env.weeklyMessageLimit,
+      promotion.max_messages,
+    ]
+  );
+
+  return Number(row?.total || 0);
+}
+
 async function dispatchPromotion({ promotionId }) {
   if (activePromotionDispatches.has(promotionId)) {
     return { inProgress: true };
@@ -237,5 +296,6 @@ async function dispatchPromotion({ promotionId }) {
 module.exports = {
   listPromotionsByRestaurant,
   createPromotion,
+  countEligibleLeadsForPromotion,
   dispatchPromotion,
 };
