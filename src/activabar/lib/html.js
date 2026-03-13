@@ -57,13 +57,18 @@ function renderPage({ title, body }) {
         gap: 16px;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       }
+      .grid-3 {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
       label {
         display: block;
         margin-bottom: 8px;
         font-size: 14px;
         color: var(--muted);
       }
-      input {
+      input, textarea {
         width: 100%;
         border: 1px solid var(--border);
         background: var(--panel-2);
@@ -71,6 +76,10 @@ function renderPage({ title, body }) {
         border-radius: 12px;
         padding: 14px 16px;
         font-size: 15px;
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
       }
       button {
         border: 0;
@@ -115,6 +124,38 @@ function renderPage({ title, body }) {
         gap: 16px;
         flex-wrap: wrap;
       }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        text-decoration: none;
+        background: rgba(21, 35, 64, 0.45);
+      }
+      .tab.active {
+        background: rgba(93, 212, 162, 0.18);
+        border-color: rgba(93, 212, 162, 0.45);
+        color: var(--text);
+        font-weight: 700;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .small {
+        padding: 10px 14px;
+        font-size: 14px;
+      }
       form.inline { margin: 0; }
       a {
         color: inherit;
@@ -123,6 +164,12 @@ function renderPage({ title, body }) {
         background: rgba(255, 255, 255, 0.06);
         border-radius: 8px;
         padding: 2px 6px;
+      }
+      .metric {
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(21, 35, 64, 0.55);
       }
     </style>
   </head>

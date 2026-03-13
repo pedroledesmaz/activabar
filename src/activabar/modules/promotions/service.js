@@ -40,14 +40,16 @@ async function listPromotionsByRestaurant(restaurantId, limit = 20) {
         p.max_messages,
         p.offer_cost_eur,
         p.sent_at,
+        p.archived_at,
         p.created_at,
         COALESCE(SUM(CASE WHEN d.status = 'sent' THEN 1 ELSE 0 END), 0) AS sent_count,
-        COALESCE(SUM(CASE WHEN d.status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_count
+        COALESCE(SUM(CASE WHEN d.status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_count,
+        COUNT(d.id) AS delivery_count
      FROM promotions p
      LEFT JOIN promotion_deliveries d ON d.promotion_id = p.id
      WHERE p.restaurant_id = $1
      GROUP BY p.id
-     ORDER BY p.created_at DESC
+     ORDER BY COALESCE(p.archived_at, p.created_at) DESC, p.created_at DESC
      LIMIT $2`,
     [restaurantId, limit]
   );
@@ -86,6 +88,7 @@ async function createPromotion(input) {
        max_messages,
        offer_cost_eur,
        sent_at,
+       archived_at,
        created_at`,
     [
       input.restaurantId,
@@ -97,6 +100,142 @@ async function createPromotion(input) {
       Number.isFinite(offerCostEur) && offerCostEur >= 0 ? offerCostEur : 0,
     ]
   );
+}
+
+async function getPromotionById(promotionId) {
+  return db.one(
+    `SELECT
+        p.id,
+        p.restaurant_id,
+        p.title,
+        p.message,
+        p.valid_from,
+        p.valid_to,
+        p.max_messages,
+        p.offer_cost_eur,
+        p.sent_at,
+        p.archived_at,
+        p.created_at,
+        COALESCE(SUM(CASE WHEN d.status = 'sent' THEN 1 ELSE 0 END), 0) AS sent_count,
+        COALESCE(SUM(CASE WHEN d.status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_count,
+        COUNT(d.id) AS delivery_count
+     FROM promotions p
+     LEFT JOIN promotion_deliveries d ON d.promotion_id = p.id
+     WHERE p.id = $1
+     GROUP BY p.id`,
+    [promotionId]
+  );
+}
+
+function isPromotionDraft(promotion) {
+  return (
+    promotion &&
+    !promotion.sent_at &&
+    Number(promotion.delivery_count || 0) === 0 &&
+    !promotion.archived_at
+  );
+}
+
+async function updatePromotion({ promotionId, title, message, validFrom, validTo, maxMessages, offerCostEur }) {
+  const promotion = await getPromotionById(promotionId);
+  if (!promotion) {
+    const error = new Error("Promocion no encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!isPromotionDraft(promotion)) {
+    const error = new Error("Solo puedes editar promociones no enviadas.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const cleanTitle = String(title || "").trim();
+  const cleanMessage = String(message || "").trim();
+  if (!cleanTitle || !cleanMessage) {
+    const error = new Error("Titulo y mensaje son obligatorios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const parsedMaxMessages = Number.parseInt(maxMessages, 10);
+  const parsedOfferCost = Number.parseFloat(offerCostEur);
+
+  await db.query(
+    `UPDATE promotions
+     SET title = $1,
+         message = $2,
+         valid_from = $3,
+         valid_to = $4,
+         max_messages = $5,
+         offer_cost_eur = $6
+     WHERE id = $7`,
+    [
+      cleanTitle,
+      cleanMessage,
+      String(validFrom || "").trim() || null,
+      String(validTo || "").trim() || null,
+      Number.isFinite(parsedMaxMessages) && parsedMaxMessages > 0 ? parsedMaxMessages : 100,
+      Number.isFinite(parsedOfferCost) && parsedOfferCost >= 0 ? parsedOfferCost : 0,
+      promotionId,
+    ]
+  );
+
+  return getPromotionById(promotionId);
+}
+
+async function duplicatePromotion(promotionId) {
+  const promotion = await getPromotionById(promotionId);
+  if (!promotion) {
+    const error = new Error("Promocion no encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return createPromotion({
+    restaurantId: promotion.restaurant_id,
+    title: `${promotion.title} (copia)`,
+    message: promotion.message,
+    validFrom: promotion.valid_from,
+    validTo: promotion.valid_to,
+    maxMessages: promotion.max_messages,
+    offerCostEur: promotion.offer_cost_eur,
+  });
+}
+
+async function archivePromotion(promotionId) {
+  const promotion = await getPromotionById(promotionId);
+  if (!promotion) {
+    const error = new Error("Promocion no encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await db.query(
+    `UPDATE promotions
+     SET archived_at = CURRENT_TIMESTAMP
+     WHERE id = $1`,
+    [promotionId]
+  );
+
+  return getPromotionById(promotionId);
+}
+
+async function deletePromotion(promotionId) {
+  const promotion = await getPromotionById(promotionId);
+  if (!promotion) {
+    const error = new Error("Promocion no encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!isPromotionDraft(promotion)) {
+    const error = new Error("Solo puedes borrar promociones no enviadas.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  await db.query("DELETE FROM promotions WHERE id = $1", [promotionId]);
 }
 
 async function countEligibleLeadsForPromotion({ promotionId }) {
@@ -166,7 +305,7 @@ async function dispatchPromotion({ promotionId }) {
 
   try {
     const promotion = await db.one(
-      `SELECT
+        `SELECT
           p.*,
           r.slug AS restaurant_slug,
           r.name AS restaurant_name,
@@ -184,6 +323,9 @@ async function dispatchPromotion({ promotionId }) {
 
     if (Number(promotion.is_archived) === 1) {
       return { archivedRestaurant: true };
+    }
+    if (promotion.archived_at) {
+      return { archivedPromotion: true };
     }
 
     const eligibleLeads = await db.many(
@@ -296,6 +438,12 @@ async function dispatchPromotion({ promotionId }) {
 module.exports = {
   listPromotionsByRestaurant,
   createPromotion,
+  getPromotionById,
+  updatePromotion,
+  duplicatePromotion,
+  archivePromotion,
+  deletePromotion,
+  isPromotionDraft,
   countEligibleLeadsForPromotion,
   dispatchPromotion,
 };
