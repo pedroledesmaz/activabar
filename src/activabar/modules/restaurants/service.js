@@ -38,6 +38,17 @@ async function getRestaurantBySlug(slug) {
   );
 }
 
+async function getRestaurantSummary(restaurantId) {
+  return db.one(
+    `SELECT
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL) AS total_leads,
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NULL) AS active_leads,
+        (SELECT COUNT(1) FROM promotions WHERE restaurant_id = $1) AS total_promotions
+     `,
+    [restaurantId]
+  );
+}
+
 async function createRestaurant(input) {
   const name = String(input.name || "").trim();
   const slug = normalizeSlug(input.slug || input.name);
@@ -76,5 +87,6 @@ async function createRestaurant(input) {
 module.exports = {
   listRestaurants,
   getRestaurantBySlug,
+  getRestaurantSummary,
   createRestaurant,
 };

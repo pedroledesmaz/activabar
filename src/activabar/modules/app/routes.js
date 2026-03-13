@@ -3,6 +3,7 @@ const env = require("../../config/env");
 const { parseCookies } = require("../../../auth");
 const { appendSetCookie } = require("../../lib/http");
 const { escapeHtml, renderPage } = require("../../lib/html");
+const db = require("../../lib/db");
 const {
   buildCookie,
   buildClearedCookie,
@@ -10,7 +11,18 @@ const {
   login,
   logout,
 } = require("../auth/service");
-const { listRestaurants, createRestaurant } = require("../restaurants/service");
+const {
+  listRestaurants,
+  getRestaurantBySlug,
+  getRestaurantSummary,
+  createRestaurant,
+} = require("../restaurants/service");
+const { listLeadsByRestaurant, createLead } = require("../leads/service");
+const {
+  listPromotionsByRestaurant,
+  createPromotion,
+  dispatchPromotion,
+} = require("../promotions/service");
 
 const router = express.Router();
 
@@ -61,6 +73,9 @@ function renderAppPage({ operator, restaurants, errorMessage, successMessage }) 
               <p class="muted">Recompensa: ${escapeHtml(
                 restaurant.default_reward || "Sin definir"
               )}</p>
+              <p><a href="/app/restaurants/${encodeURIComponent(
+                restaurant.slug
+              )}" style="color: var(--accent); text-decoration: none; font-weight: 700;">Abrir restaurante</a></p>
             </article>
           `
         )
@@ -111,6 +126,168 @@ function renderAppPage({ operator, restaurants, errorMessage, successMessage }) 
         </div>
         <section class="grid">
           ${restaurantItems}
+        </section>
+      </section>
+    `,
+  });
+}
+
+function renderRestaurantPage({
+  operator,
+  restaurant,
+  summary,
+  leads,
+  promotions,
+  errorMessage,
+  successMessage,
+}) {
+  const errorBanner = errorMessage
+    ? `<div class="banner error">${escapeHtml(errorMessage)}</div>`
+    : "";
+  const successBanner = successMessage
+    ? `<div class="banner ok">${escapeHtml(successMessage)}</div>`
+    : "";
+
+  const leadItems = leads.length
+    ? leads
+        .map(
+          (lead) => `
+            <article class="restaurant">
+              <h3>${escapeHtml(lead.phone_e164)}</h3>
+              <p class="muted">Codigo: <code>${escapeHtml(lead.claim_code || "-")}</code></p>
+              <p class="muted">Recompensa: ${escapeHtml(lead.reward_label || "-")}</p>
+              <p class="muted">Origen: ${escapeHtml(lead.source_qr || "-")}</p>
+            </article>
+          `
+        )
+        .join("")
+    : `<div class="restaurant"><p>Aun no hay leads en este restaurante.</p></div>`;
+
+  const promotionItems = promotions.length
+    ? promotions
+        .map(
+          (promotion) => `
+            <article class="restaurant">
+              <h3>${escapeHtml(promotion.title)}</h3>
+              <p class="muted">${escapeHtml(promotion.message)}</p>
+              <p class="muted">Enviados: ${escapeHtml(promotion.sent_count)} | Fallidos: ${escapeHtml(
+                promotion.failed_count
+              )}</p>
+              <p class="muted">Maximo: ${escapeHtml(promotion.max_messages)} | Coste oferta: ${escapeHtml(
+                promotion.offer_cost_eur
+              )} EUR</p>
+              <form method="post" action="/app/promotions/${promotion.id}/dispatch" class="inline">
+                <button type="submit" class="secondary">Enviar ahora</button>
+              </form>
+            </article>
+          `
+        )
+        .join("")
+    : `<div class="restaurant"><p>Aun no hay promociones en este restaurante.</p></div>`;
+
+  return renderPage({
+    title: `Activabar | ${restaurant.name}`,
+    body: `
+      <section class="card grid">
+        <div class="toolbar">
+          <div>
+            <p class="muted"><a href="/app" style="color: var(--muted); text-decoration: none;">Volver al panel</a></p>
+            <h1>${escapeHtml(restaurant.name)}</h1>
+            <p class="muted">Operador: ${escapeHtml(operator.email)} | Slug: <code>${escapeHtml(
+              restaurant.slug
+            )}</code></p>
+          </div>
+          <form method="post" action="/logout" class="inline">
+            <button type="submit" class="secondary">Cerrar sesion</button>
+          </form>
+        </div>
+        ${errorBanner}
+        ${successBanner}
+        <div class="grid-2">
+          <section class="card">
+            <p class="muted">Resumen</p>
+            <h2>${escapeHtml(summary.total_leads || 0)}</h2>
+            <p class="muted">Leads totales</p>
+            <p class="muted">Activos: ${escapeHtml(summary.active_leads || 0)}</p>
+            <p class="muted">Promociones: ${escapeHtml(summary.total_promotions || 0)}</p>
+          </section>
+          <section class="card">
+            <p class="muted">Configuracion</p>
+            <h2>${escapeHtml(restaurant.default_reward || "Sin recompensa base")}</h2>
+            <p class="muted">Define aqui la operativa inicial del restaurante.</p>
+          </section>
+        </div>
+        <div class="grid-2">
+          <section class="card">
+            <p class="muted">Nuevo lead</p>
+            <h2>Alta manual</h2>
+            <form method="post" action="/app/restaurants/${encodeURIComponent(
+              restaurant.slug
+            )}/leads" class="grid">
+              <div>
+                <label for="phone">WhatsApp</label>
+                <input id="phone" name="phone" placeholder="+34600111222" required />
+              </div>
+              <div>
+                <label for="sourceQr">Origen</label>
+                <input id="sourceQr" name="sourceQr" placeholder="barra o mesa-7" />
+              </div>
+              <div>
+                <label for="rewardLabel">Recompensa</label>
+                <input id="rewardLabel" name="rewardLabel" placeholder="Cafe gratis" />
+              </div>
+              <label style="display:flex; gap:10px; align-items:center; color:var(--text);">
+                <input type="checkbox" name="sendWelcome" value="on" style="width:auto;" />
+                Enviar WhatsApp de bienvenida ahora
+              </label>
+              <button type="submit">Crear lead</button>
+            </form>
+          </section>
+          <section class="card">
+            <p class="muted">Nueva promocion</p>
+            <h2>Campana manual</h2>
+            <form method="post" action="/app/restaurants/${encodeURIComponent(
+              restaurant.slug
+            )}/promotions" class="grid">
+              <div>
+                <label for="title">Titulo</label>
+                <input id="title" name="title" required />
+              </div>
+              <div>
+                <label for="message">Mensaje</label>
+                <input id="message" name="message" required />
+              </div>
+              <div class="grid-2">
+                <div>
+                  <label for="validFrom">Valida desde</label>
+                  <input id="validFrom" name="validFrom" placeholder="hoy 18:00" />
+                </div>
+                <div>
+                  <label for="validTo">Valida hasta</label>
+                  <input id="validTo" name="validTo" placeholder="domingo" />
+                </div>
+              </div>
+              <div class="grid-2">
+                <div>
+                  <label for="maxMessages">Maximo mensajes</label>
+                  <input id="maxMessages" name="maxMessages" value="100" />
+                </div>
+                <div>
+                  <label for="offerCostEur">Coste oferta EUR</label>
+                  <input id="offerCostEur" name="offerCostEur" value="0" />
+                </div>
+              </div>
+              <button type="submit">Crear promocion</button>
+            </form>
+          </section>
+        </div>
+        <section class="grid">
+          <h2>Leads</h2>
+          ${leadItems}
+        </section>
+        <section class="grid">
+          <h2>Promociones</h2>
+          ${promotionItems}
         </section>
       </section>
     `,
@@ -209,6 +386,35 @@ router.get("/app", requireWebAuth, async (req, res, next) => {
   }
 });
 
+router.get("/app/restaurants/:slug", requireWebAuth, async (req, res, next) => {
+  try {
+    const restaurant = await getRestaurantBySlug(req.params.slug);
+    if (!restaurant) {
+      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    }
+
+    const [summary, leads, promotions] = await Promise.all([
+      getRestaurantSummary(restaurant.id),
+      listLeadsByRestaurant(restaurant.id),
+      listPromotionsByRestaurant(restaurant.id),
+    ]);
+
+    return res.type("html").send(
+      renderRestaurantPage({
+        operator: req.auth,
+        restaurant,
+        summary,
+        leads,
+        promotions,
+        errorMessage: String(req.query.error || "").trim(),
+        successMessage: String(req.query.success || "").trim(),
+      })
+    );
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/app/restaurants", requireWebAuth, async (req, res, next) => {
   try {
     const restaurant = await createRestaurant(req.body || {});
@@ -218,6 +424,137 @@ router.post("/app/restaurants", requireWebAuth, async (req, res, next) => {
   } catch (error) {
     const message = error.statusCode ? error.message : "No se pudo crear el restaurante.";
     return res.redirect(`/app?error=${encodeURIComponent(message)}`);
+  }
+});
+
+router.post("/app/restaurants/:slug/leads", requireWebAuth, async (req, res, next) => {
+  try {
+    const restaurant = await getRestaurantBySlug(req.params.slug);
+    if (!restaurant) {
+      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    }
+
+    const result = await createLead({
+      restaurant,
+      phone: req.body.phone,
+      sourceQr: req.body.sourceQr,
+      rewardLabel: req.body.rewardLabel,
+      sendWelcome: req.body.sendWelcome === "on",
+    });
+
+    const success = result.confirmationSent
+      ? `Lead creado y WhatsApp enviado a ${result.lead.phone_e164}`
+      : `Lead creado: ${result.lead.phone_e164}`;
+    const redirectUrl = `/app/restaurants/${encodeURIComponent(
+      restaurant.slug
+    )}?success=${encodeURIComponent(success)}`;
+
+    if (result.confirmationError) {
+      return res.redirect(
+        `/app/restaurants/${encodeURIComponent(
+          restaurant.slug
+        )}?error=${encodeURIComponent(result.confirmationError)}`
+      );
+    }
+
+    return res.redirect(redirectUrl);
+  } catch (error) {
+    const message = error.statusCode ? error.message : "No se pudo crear el lead.";
+    return res.redirect(
+      `/app/restaurants/${encodeURIComponent(
+        req.params.slug
+      )}?error=${encodeURIComponent(message)}`
+    );
+  }
+});
+
+router.post(
+  "/app/restaurants/:slug/promotions",
+  requireWebAuth,
+  async (req, res, next) => {
+    try {
+      const restaurant = await getRestaurantBySlug(req.params.slug);
+      if (!restaurant) {
+        return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+      }
+
+      const promotion = await createPromotion({
+        restaurantId: restaurant.id,
+        title: req.body.title,
+        message: req.body.message,
+        validFrom: req.body.validFrom,
+        validTo: req.body.validTo,
+        maxMessages: req.body.maxMessages,
+        offerCostEur: req.body.offerCostEur,
+      });
+
+      return res.redirect(
+        `/app/restaurants/${encodeURIComponent(
+          restaurant.slug
+        )}?success=${encodeURIComponent(`Promocion creada: ${promotion.title}`)}`
+      );
+    } catch (error) {
+      const message = error.statusCode
+        ? error.message
+        : "No se pudo crear la promocion.";
+      return res.redirect(
+        `/app/restaurants/${encodeURIComponent(
+          req.params.slug
+        )}?error=${encodeURIComponent(message)}`
+      );
+    }
+  }
+);
+
+router.post("/app/promotions/:promotionId/dispatch", requireWebAuth, async (req, res, next) => {
+  try {
+    const promotionId = Number.parseInt(req.params.promotionId, 10);
+    if (!Number.isInteger(promotionId) || promotionId < 1) {
+      return res.redirect("/app?error=Promocion%20invalida.");
+    }
+
+    const result = await dispatchPromotion({ promotionId });
+    if (result.notFound) {
+      return res.redirect("/app?error=Promocion%20no%20encontrada.");
+    }
+
+    const promotion = await db.one(
+      `SELECT r.slug
+       FROM promotions p
+       JOIN restaurants r ON r.id = p.restaurant_id
+       WHERE p.id = $1`,
+      [promotionId]
+    );
+
+    if (!promotion) {
+      return res.redirect("/app?error=Promocion%20sin%20restaurante.");
+    }
+
+    if (result.archivedRestaurant) {
+      return res.redirect(
+        `/app/restaurants/${encodeURIComponent(
+          promotion.slug
+        )}?error=${encodeURIComponent("No puedes enviar promociones de un restaurante archivado.")}`
+      );
+    }
+
+    if (result.inProgress) {
+      return res.redirect(
+        `/app/restaurants/${encodeURIComponent(
+          promotion.slug
+        )}?error=${encodeURIComponent("Esta promocion ya se esta enviando.")}`
+      );
+    }
+
+    return res.redirect(
+      `/app/restaurants/${encodeURIComponent(
+        promotion.slug
+      )}?success=${encodeURIComponent(
+        `Envio completado. Elegibles ${result.eligible}, enviados ${result.sent}, fallidos ${result.failed}, omitidos ${result.skipped}.`
+      )}`
+    );
+  } catch (error) {
+    return next(error);
   }
 });
 

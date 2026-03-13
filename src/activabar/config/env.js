@@ -39,6 +39,16 @@ const env = {
       process.env.DEFAULT_COUNTRY_CODE ||
       "+34"
   ).trim(),
+  messageCooldownHours: parseInteger(process.env.MESSAGE_COOLDOWN_HOURS, 72),
+  weeklyMessageLimit: parseInteger(process.env.WEEKLY_MESSAGE_LIMIT, 2),
+  welcomeConfirmationEnabled: parseBoolean(
+    process.env.WELCOME_CONFIRMATION_ENABLED,
+    true
+  ),
+  welcomeCodeLength: Math.min(
+    10,
+    Math.max(4, parseInteger(process.env.WELCOME_CODE_LENGTH, 6))
+  ),
   logFile: String(
     process.env.ACTIVABAR_LOG_FILE || "./data/logs/activabar.log"
   ).trim(),
