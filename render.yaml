@@ -1,0 +1,31 @@
+databases:
+  - name: activabar-db
+    databaseName: activabar
+    user: activabar
+
+services:
+  - type: web
+    name: activabar-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run start:activabar
+    healthCheckPath: /health/full
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ACTIVABAR_APP_NAME
+        value: activabar
+      - key: ACTIVABAR_SESSION_COOKIE_NAME
+        value: activabar_session
+      - key: DATABASE_SSL
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: activabar-db
+          property: connectionString
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

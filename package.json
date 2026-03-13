@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-restaurant-mvp",
+  "version": "0.1.0",
+  "description": "MVP para captar clientes por QR y enviar promociones de baja afluencia por WhatsApp.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:activabar": "node src/activabar/server.js",
+    "seed": "node src/seed.js",
+    "create-admin": "node src/create-admin.js",
+    "create-admin:activabar": "node src/activabar/scripts/create-admin.js",
+    "backup": "node src/run-backup.js",
+    "restore": "node src/restore-backup.js",
+    "export:postgres": "node src/export-postgres.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.20.0"
+  }
+}
