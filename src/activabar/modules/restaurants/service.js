@@ -38,6 +38,28 @@ async function getRestaurantBySlug(slug) {
   );
 }
 
+async function getRestaurantBySlugAny(slug) {
+  return db.one(
+    `SELECT
+        id,
+        name,
+        slug,
+        default_reward,
+        welcome_template,
+        promotion_template,
+        avg_ticket_eur,
+        gross_margin_pct,
+        promo_conversion_pct,
+        whatsapp_cost_eur,
+        is_archived,
+        archived_at,
+        created_at
+     FROM restaurants
+     WHERE slug = $1`,
+    [slug]
+  );
+}
+
 async function getRestaurantSummary(restaurantId) {
   return db.one(
     `SELECT
@@ -87,6 +109,7 @@ async function createRestaurant(input) {
 module.exports = {
   listRestaurants,
   getRestaurantBySlug,
+  getRestaurantBySlugAny,
   getRestaurantSummary,
   createRestaurant,
 };

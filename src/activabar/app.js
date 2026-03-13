@@ -5,6 +5,7 @@ const appRoutes = require("./modules/app/routes");
 const healthRoutes = require("./modules/health/routes");
 const authRoutes = require("./modules/auth/routes");
 const restaurantRoutes = require("./modules/restaurants/routes");
+const twilioWebhookRoutes = require("./modules/webhooks/twilio");
 
 function createApp() {
   const app = express();
@@ -19,6 +20,7 @@ function createApp() {
   app.use("/health", healthRoutes);
   app.use("/api/auth", authRoutes);
   app.use("/api/restaurants", restaurantRoutes);
+  app.use("/webhooks", twilioWebhookRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: "Route not found." });

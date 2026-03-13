@@ -49,6 +49,10 @@ const env = {
     10,
     Math.max(4, parseInteger(process.env.WELCOME_CODE_LENGTH, 6))
   ),
+  twilioWebhookValidateSignature: parseBoolean(
+    process.env.TWILIO_WEBHOOK_VALIDATE_SIGNATURE,
+    false
+  ),
   logFile: String(
     process.env.ACTIVABAR_LOG_FILE || "./data/logs/activabar.log"
   ).trim(),
