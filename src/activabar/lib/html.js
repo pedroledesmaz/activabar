@@ -62,6 +62,11 @@ function renderPage({ title, body }) {
         gap: 16px;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       }
+      .grid-4 {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
       label {
         display: block;
         margin-bottom: 8px;
@@ -170,6 +175,56 @@ function renderPage({ title, body }) {
         border-radius: 16px;
         border: 1px solid var(--border);
         background: rgba(21, 35, 64, 0.55);
+      }
+      .metric h2 {
+        margin-bottom: 6px;
+      }
+      .metric .value {
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.05;
+        margin-bottom: 8px;
+      }
+      .metric .meta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: rgba(21, 35, 64, 0.45);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 14px 16px;
+        text-align: left;
+        border-bottom: 1px solid rgba(42, 59, 102, 0.7);
+        vertical-align: top;
+      }
+      th {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(93, 212, 162, 0.1);
+        color: var(--text);
+        font-size: 13px;
       }
     </style>
   </head>

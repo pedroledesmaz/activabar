@@ -66,12 +66,30 @@ async function getRestaurantSummary(restaurantId) {
         (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL) AS total_leads,
         (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NULL) AS active_leads,
         (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NOT NULL) AS opted_out_leads,
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND redeemed_at IS NOT NULL) AS redeemed_leads,
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS new_leads_30d,
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND redeemed_at IS NOT NULL AND redeemed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS redeemed_30d,
+        (SELECT COUNT(1) FROM leads WHERE restaurant_id = $1 AND deleted_at IS NULL AND opt_out_at IS NOT NULL AND opt_out_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS optouts_30d,
         (SELECT COUNT(1) FROM promotions WHERE restaurant_id = $1 AND archived_at IS NULL) AS total_promotions,
         (SELECT COUNT(1) FROM promotions WHERE restaurant_id = $1 AND archived_at IS NOT NULL) AS archived_promotions,
         (SELECT COALESCE(SUM(CASE WHEN d.status = 'sent' THEN 1 ELSE 0 END), 0)
          FROM promotion_deliveries d
          JOIN promotions p ON p.id = d.promotion_id
-         WHERE p.restaurant_id = $1) AS total_sent_deliveries
+         WHERE p.restaurant_id = $1) AS total_sent_deliveries,
+        (SELECT COALESCE(SUM(CASE WHEN d.status = 'failed' THEN 1 ELSE 0 END), 0)
+         FROM promotion_deliveries d
+         JOIN promotions p ON p.id = d.promotion_id
+         WHERE p.restaurant_id = $1) AS total_failed_deliveries,
+        (SELECT COALESCE(SUM(CASE WHEN d.status = 'sent' THEN 1 ELSE 0 END), 0)
+         FROM promotion_deliveries d
+         JOIN promotions p ON p.id = d.promotion_id
+         WHERE p.restaurant_id = $1
+           AND d.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS sent_30d,
+        (SELECT COALESCE(SUM(CASE WHEN d.status = 'failed' THEN 1 ELSE 0 END), 0)
+         FROM promotion_deliveries d
+         JOIN promotions p ON p.id = d.promotion_id
+         WHERE p.restaurant_id = $1
+           AND d.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS failed_30d
      `,
     [restaurantId]
   );

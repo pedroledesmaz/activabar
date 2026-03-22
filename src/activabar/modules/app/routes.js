@@ -52,6 +52,60 @@ function formatNumber(value, fallback = "No disponible") {
   return Number.isFinite(number) ? String(number) : fallback;
 }
 
+function asNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function formatInteger(value) {
+  return new Intl.NumberFormat("es-ES").format(asNumber(value, 0));
+}
+
+function formatEuro(value) {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(asNumber(value, 0));
+}
+
+function formatPercent(value) {
+  return `${asNumber(value, 0).toFixed(1)}%`;
+}
+
+function estimatePromotionFinance({
+  sentCount,
+  offerCostEur,
+  avgTicketEur,
+  grossMarginPct,
+  promoConversionPct,
+  whatsappCostEur,
+}) {
+  const sent = Math.max(0, asNumber(sentCount, 0));
+  const offerCost = Math.max(0, asNumber(offerCostEur, 0));
+  const avgTicket = Math.max(0, asNumber(avgTicketEur, 20));
+  const marginPct = Math.max(0, Math.min(100, asNumber(grossMarginPct, 70)));
+  const conversionPct = Math.max(0, Math.min(100, asNumber(promoConversionPct, 8)));
+  const messageCost = Math.max(0, asNumber(whatsappCostEur, 0.08));
+
+  const estimatedOrders = sent * (conversionPct / 100);
+  const estimatedRevenue = estimatedOrders * avgTicket;
+  const estimatedGrossProfit = estimatedRevenue * (marginPct / 100);
+  const estimatedCampaignCost = sent * messageCost + offerCost;
+  const estimatedNet = estimatedGrossProfit - estimatedCampaignCost;
+  const roiPct = estimatedCampaignCost > 0 ? (estimatedNet / estimatedCampaignCost) * 100 : 0;
+
+  return {
+    estimatedOrders,
+    estimatedRevenue,
+    estimatedGrossProfit,
+    estimatedCampaignCost,
+    estimatedNet,
+    roiPct,
+  };
+}
+
 function restaurantBasePath(slug) {
   return `/app/restaurants/${encodeURIComponent(slug)}`;
 }
@@ -241,6 +295,69 @@ function renderRestaurantShell({
 }
 
 function renderSummarySection({ restaurant, summary, recentLeads, recentPromotions }) {
+  const totalLeads = asNumber(summary.total_leads);
+  const activeLeads = asNumber(summary.active_leads);
+  const optedOutLeads = asNumber(summary.opted_out_leads);
+  const redeemedLeads = asNumber(summary.redeemed_leads);
+  const totalPromotions = asNumber(summary.total_promotions);
+  const archivedPromotions = asNumber(summary.archived_promotions);
+  const sent30d = asNumber(summary.sent_30d);
+  const failed30d = asNumber(summary.failed_30d);
+  const newLeads30d = asNumber(summary.new_leads_30d);
+  const redeemed30d = asNumber(summary.redeemed_30d);
+  const optouts30d = asNumber(summary.optouts_30d);
+  const totalSentDeliveries = asNumber(summary.total_sent_deliveries);
+  const totalFailedDeliveries = asNumber(summary.total_failed_deliveries);
+
+  const deliveryAttempt30d = sent30d + failed30d;
+  const conversionTotalPct = totalLeads > 0 ? (redeemedLeads / totalLeads) * 100 : 0;
+  const conversion30dPct = sent30d > 0 ? (redeemed30d / sent30d) * 100 : 0;
+  const deliveryRate30dPct = deliveryAttempt30d > 0 ? (sent30d / deliveryAttempt30d) * 100 : 0;
+  const optOutRate30dPct = newLeads30d > 0 ? (optouts30d / newLeads30d) * 100 : 0;
+  const activeBasePct = totalLeads > 0 ? (activeLeads / totalLeads) * 100 : 0;
+
+  const metricSettings = {
+    avgTicketEur: asNumber(restaurant.avg_ticket_eur, 20),
+    grossMarginPct: asNumber(restaurant.gross_margin_pct, 70),
+    promoConversionPct: asNumber(restaurant.promo_conversion_pct, 8),
+    whatsappCostEur: asNumber(restaurant.whatsapp_cost_eur, 0.08),
+  };
+
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  let estimatedRevenue30d = 0;
+  let estimatedCost30d = 0;
+  let estimatedNet30d = 0;
+
+  const promotionPerformance = [...recentPromotions]
+    .sort((left, right) => {
+      const leftTime = new Date(left.sent_at || left.created_at || 0).getTime();
+      const rightTime = new Date(right.sent_at || right.created_at || 0).getTime();
+      return rightTime - leftTime;
+    })
+    .map((promotion) => {
+      const finance = estimatePromotionFinance({
+        sentCount: promotion.sent_count,
+        offerCostEur: promotion.offer_cost_eur,
+        avgTicketEur: metricSettings.avgTicketEur,
+        grossMarginPct: metricSettings.grossMarginPct,
+        promoConversionPct: metricSettings.promoConversionPct,
+        whatsappCostEur: metricSettings.whatsappCostEur,
+      });
+      const activityTime = new Date(promotion.sent_at || promotion.created_at || 0).getTime();
+      if (Number.isFinite(activityTime) && activityTime >= thirtyDaysAgo) {
+        estimatedRevenue30d += finance.estimatedRevenue;
+        estimatedCost30d += finance.estimatedCampaignCost;
+        estimatedNet30d += finance.estimatedNet;
+      }
+      return {
+        ...promotion,
+        finance,
+      };
+    });
+
+  const roi30dPct = estimatedCost30d > 0 ? (estimatedNet30d / estimatedCost30d) * 100 : 0;
+  const topPromotions = promotionPerformance.slice(0, 6);
+
   const recentLeadItems = recentLeads.length
     ? recentLeads
         .map(
@@ -255,59 +372,96 @@ function renderSummarySection({ restaurant, summary, recentLeads, recentPromotio
         .join("")
     : `<div class="restaurant"><p>Aun no hay leads recientes.</p></div>`;
 
-  const recentPromotionItems = recentPromotions.length
-    ? recentPromotions
-        .slice(0, 4)
+  const promotionRows = topPromotions.length
+    ? topPromotions
         .map(
           (promotion) => `
-            <article class="restaurant">
-              <h3>${escapeHtml(promotion.title)}</h3>
-              <p class="muted">Enviados: ${escapeHtml(promotion.sent_count)} | Fallidos: ${escapeHtml(
-                promotion.failed_count
-              )}</p>
-              <p class="muted">Estado: ${escapeHtml(
+            <tr>
+              <td>
+                <strong>${escapeHtml(promotion.title)}</strong>
+                <div class="muted">${escapeHtml(formatDateTime(promotion.sent_at || promotion.created_at))}</div>
+              </td>
+              <td>${escapeHtml(
                 promotion.archived_at ? "Archivada" : isPromotionDraft(promotion) ? "Borrador" : "Activa"
-              )}</p>
-            </article>
+              )}</td>
+              <td>${escapeHtml(formatInteger(promotion.sent_count))}</td>
+              <td>${escapeHtml(formatInteger(promotion.failed_count))}</td>
+              <td>${escapeHtml(formatEuro(promotion.finance.estimatedCampaignCost))}</td>
+              <td>${escapeHtml(formatEuro(promotion.finance.estimatedNet))}</td>
+              <td>${escapeHtml(formatPercent(promotion.finance.roiPct))}</td>
+            </tr>
           `
         )
         .join("")
-    : `<div class="restaurant"><p>Aun no hay promociones recientes.</p></div>`;
+    : `
+        <tr>
+          <td colspan="7" class="muted">Aun no hay promociones con actividad suficiente para analizar.</td>
+        </tr>
+      `;
 
   return `
-    <div class="grid-3">
+    <div class="grid-4">
       <section class="metric">
-        <p class="muted">Leads totales</p>
-        <h2>${escapeHtml(summary.total_leads || 0)}</h2>
-      </section>
-      <section class="metric">
-        <p class="muted">Leads activos</p>
-        <h2>${escapeHtml(summary.active_leads || 0)}</h2>
-      </section>
-      <section class="metric">
-        <p class="muted">Bajas</p>
-        <h2>${escapeHtml(summary.opted_out_leads || 0)}</h2>
-      </section>
-      <section class="metric">
-        <p class="muted">Promociones activas</p>
-        <h2>${escapeHtml(summary.total_promotions || 0)}</h2>
-      </section>
-      <section class="metric">
-        <p class="muted">Promociones archivadas</p>
-        <h2>${escapeHtml(summary.archived_promotions || 0)}</h2>
+        <p class="muted">Clientes captados</p>
+        <div class="value">${escapeHtml(formatInteger(totalLeads))}</div>
+        <p class="meta">${escapeHtml(formatInteger(activeLeads))} activos ahora</p>
       </section>
       <section class="metric">
         <p class="muted">Mensajes enviados</p>
-        <h2>${escapeHtml(summary.total_sent_deliveries || 0)}</h2>
+        <div class="value">${escapeHtml(formatInteger(totalSentDeliveries))}</div>
+        <p class="meta">${escapeHtml(formatInteger(sent30d))} en los ultimos 30 dias</p>
+      </section>
+      <section class="metric">
+        <p class="muted">Canjes registrados</p>
+        <div class="value">${escapeHtml(formatInteger(redeemedLeads))}</div>
+        <p class="meta">${escapeHtml(formatInteger(redeemed30d))} en 30 dias</p>
+      </section>
+      <section class="metric">
+        <p class="muted">Conversion total</p>
+        <div class="value">${escapeHtml(formatPercent(conversionTotalPct))}</div>
+        <p class="meta">canjes sobre base captada</p>
+      </section>
+    </div>
+    <div class="grid-4">
+      <section class="metric">
+        <p class="muted">Leads nuevos 30d</p>
+        <div class="value">${escapeHtml(formatInteger(newLeads30d))}</div>
+        <p class="meta">${escapeHtml(formatPercent(activeBasePct))} de la base sigue activa</p>
+      </section>
+      <section class="metric">
+        <p class="muted">Bajas 30d</p>
+        <div class="value">${escapeHtml(formatInteger(optouts30d))}</div>
+        <p class="meta">${escapeHtml(formatPercent(optOutRate30dPct))} sobre nuevas altas</p>
+      </section>
+      <section class="metric">
+        <p class="muted">Neto estimado 30d</p>
+        <div class="value">${escapeHtml(formatEuro(estimatedNet30d))}</div>
+        <p class="meta">${escapeHtml(formatEuro(estimatedRevenue30d))} ingresos estimados</p>
+      </section>
+      <section class="metric">
+        <p class="muted">ROI estimado 30d</p>
+        <div class="value">${escapeHtml(formatPercent(roi30dPct))}</div>
+        <p class="meta">${escapeHtml(formatPercent(conversion30dPct))} conversion de envios 30d</p>
       </section>
     </div>
     <div class="grid-2">
       <section class="card">
-        <p class="muted">Configuracion base</p>
-        <h2>${escapeHtml(restaurant.default_reward || "Sin recompensa base")}</h2>
-        <p class="muted">Ticket medio: ${escapeHtml(formatNumber(restaurant.avg_ticket_eur))}</p>
-        <p class="muted">Margen bruto: ${escapeHtml(formatNumber(restaurant.gross_margin_pct))}%</p>
-        <p class="muted">Conversion promo: ${escapeHtml(formatNumber(restaurant.promo_conversion_pct))}%</p>
+        <p class="muted">Lectura rapida</p>
+        <h2>Como va el bar</h2>
+        <p class="muted">
+          Tienes ${escapeHtml(formatInteger(totalPromotions))} promociones activas y ${escapeHtml(
+            formatInteger(archivedPromotions)
+          )} archivadas. La entregabilidad de los ultimos 30 dias va en ${escapeHtml(
+            formatPercent(deliveryRate30dPct)
+          )} y llevas ${escapeHtml(formatInteger(totalFailedDeliveries))} fallidos acumulados.
+        </p>
+        <p class="muted">
+          Con la configuracion actual, cada campana estima ticket medio de ${escapeHtml(
+            formatEuro(metricSettings.avgTicketEur)
+          )}, margen bruto del ${escapeHtml(formatPercent(metricSettings.grossMarginPct))} y coste de WhatsApp de ${escapeHtml(
+            formatEuro(metricSettings.whatsappCostEur)
+          )} por envio.
+        </p>
       </section>
       <section class="card">
         <p class="muted">Accesos rapidos</p>
@@ -326,12 +480,34 @@ function renderSummarySection({ restaurant, summary, recentLeads, recentPromotio
     </div>
     <div class="grid-2">
       <section class="grid">
-        <h2>Leads recientes</h2>
-        ${recentLeadItems}
+        <h2>Promociones y rendimiento</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Campana</th>
+                <th>Estado</th>
+                <th>Enviados</th>
+                <th>Fallidos</th>
+                <th>Coste est.</th>
+                <th>Neto est.</th>
+                <th>ROI est.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${promotionRows}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section class="grid">
-        <h2>Promociones recientes</h2>
-        ${recentPromotionItems}
+        <h2>Leads recientes</h2>
+        <div class="actions">
+          <span class="pill">Activos ${escapeHtml(formatInteger(activeLeads))}</span>
+          <span class="pill">Bajas ${escapeHtml(formatInteger(optedOutLeads))}</span>
+          <span class="pill">Canjes ${escapeHtml(formatInteger(redeemedLeads))}</span>
+        </div>
+        ${recentLeadItems}
       </section>
     </div>
   `;
@@ -818,7 +994,7 @@ router.get("/app/restaurants/:slug", requireWebAuth, async (req, res, next) => {
     const [summary, leads, promotions] = await Promise.all([
       getRestaurantSummary(restaurant.id),
       listLeadsByRestaurant(restaurant.id, 5),
-      listPromotionsByRestaurant(restaurant.id, 5),
+      listPromotionsByRestaurant(restaurant.id, 200),
     ]);
 
     return res.type("html").send(
