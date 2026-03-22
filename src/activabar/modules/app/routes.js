@@ -9,6 +9,10 @@ const {
   findActiveSessionByToken,
   login,
   logout,
+  canManageAllRestaurants,
+  canAccessRestaurant,
+  listRestaurantManagers,
+  createRestaurantManager,
 } = require("../auth/service");
 const {
   listRestaurants,
@@ -133,29 +137,41 @@ function renderAppPage({ operator, restaurants, errorMessage, successMessage }) 
         ${errorBanner}
         ${successBanner}
         <div class="grid-2">
-          <section class="card">
-            <p class="muted">Nuevo restaurante</p>
-            <h2>Crear restaurante</h2>
-            <form method="post" action="/app/restaurants" class="grid">
-              <div>
-                <label for="name">Nombre</label>
-                <input id="name" name="name" required />
-              </div>
-              <div>
-                <label for="slug">Slug</label>
-                <input id="slug" name="slug" placeholder="se-autogenera-si-lo-dejas-vacio" />
-              </div>
-              <div>
-                <label for="defaultReward">Recompensa inicial</label>
-                <input id="defaultReward" name="defaultReward" placeholder="Cafe gratis o 2x1" />
-              </div>
-              <button type="submit">Crear restaurante</button>
-            </form>
-          </section>
+          ${
+            canManageAllRestaurants(operator)
+              ? `<section class="card">
+                  <p class="muted">Nuevo restaurante</p>
+                  <h2>Crear restaurante</h2>
+                  <form method="post" action="/app/restaurants" class="grid">
+                    <div>
+                      <label for="name">Nombre</label>
+                      <input id="name" name="name" required />
+                    </div>
+                    <div>
+                      <label for="slug">Slug</label>
+                      <input id="slug" name="slug" placeholder="se-autogenera-si-lo-dejas-vacio" />
+                    </div>
+                    <div>
+                      <label for="defaultReward">Recompensa inicial</label>
+                      <input id="defaultReward" name="defaultReward" placeholder="Cafe gratis o 2x1" />
+                    </div>
+                    <button type="submit">Crear restaurante</button>
+                  </form>
+                </section>`
+              : `<section class="card">
+                  <p class="muted">Acceso</p>
+                  <h2>Tus restaurantes</h2>
+                  <p class="muted">Tu cuenta solo puede operar en los bares asignados.</p>
+                </section>`
+          }
           <section class="card">
             <p class="muted">Restaurantes</p>
             <h2>${restaurants.length}</h2>
-            <p class="muted">Cada bar tiene ahora sus propias secciones.</p>
+            <p class="muted">${
+              canManageAllRestaurants(operator)
+                ? "Cada bar tiene ahora sus propias secciones."
+                : "Solo ves los restaurantes a los que tienes acceso."
+            }</p>
           </section>
         </div>
         <section class="grid">
@@ -557,7 +573,22 @@ function renderPromotionEditSection({ restaurant, promotion }) {
   `;
 }
 
-function renderSettingsSection({ restaurant }) {
+function renderSettingsSection({ restaurant, operator, managers }) {
+  const managerItems = managers.length
+    ? managers
+        .map(
+          (manager) => `
+            <article class="restaurant">
+              <h3>${escapeHtml(manager.email)}</h3>
+              <p class="muted">Rol: ${escapeHtml(manager.role)}</p>
+              <p class="muted">Activo: ${escapeHtml(Number(manager.is_active) === 1 ? "Si" : "No")}</p>
+              <p class="muted">Asignado: ${escapeHtml(formatDateTime(manager.created_at))}</p>
+            </article>
+          `
+        )
+        .join("")
+    : `<div class="restaurant"><p>No hay managers asignados a este bar.</p></div>`;
+
   return `
     <div class="grid-2">
       <section class="card">
@@ -624,6 +655,31 @@ function renderSettingsSection({ restaurant }) {
         <p class="muted"><code>{message}</code>, <code>{validity_line}</code>, <code>{valid_from}</code>, <code>{valid_to}</code></p>
       </section>
     </div>
+    ${
+      canManageAllRestaurants(operator)
+        ? `<div class="grid-2">
+            <section class="card">
+              <p class="muted">Accesos del bar</p>
+              <h2>Crear manager</h2>
+              <form method="post" action="${restaurantBasePath(restaurant.slug)}/managers" class="grid">
+                <div>
+                  <label for="managerEmail">Email</label>
+                  <input id="managerEmail" name="email" type="email" required />
+                </div>
+                <div>
+                  <label for="managerPassword">Password inicial</label>
+                  <input id="managerPassword" name="password" type="password" required />
+                </div>
+                <button type="submit">Crear manager</button>
+              </form>
+            </section>
+            <section class="grid">
+              <h2>Managers asignados</h2>
+              ${managerItems}
+            </section>
+          </div>`
+        : ""
+    }
   `;
 }
 
@@ -647,10 +703,22 @@ async function requireWebAuth(req, res, next) {
   }
 }
 
-async function loadRestaurantOrRedirect(slug, res) {
+function filterRestaurantsForOperator(restaurants, operator) {
+  if (canManageAllRestaurants(operator)) {
+    return restaurants;
+  }
+  const ids = operator.restaurant_ids || operator.restaurantIds || [];
+  return restaurants.filter((restaurant) => ids.includes(Number(restaurant.id)));
+}
+
+async function loadRestaurantOrRedirect(slug, operator, res) {
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) {
     res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    return null;
+  }
+  if (!canAccessRestaurant(operator, restaurant.id)) {
+    res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     return null;
   }
   return restaurant;
@@ -707,7 +775,10 @@ router.post("/logout", async (req, res, next) => {
 
 router.get("/app", requireWebAuth, async (req, res, next) => {
   try {
-    const restaurants = await listRestaurants();
+    const restaurants = filterRestaurantsForOperator(
+      await listRestaurants(),
+      req.auth
+    );
     return res.type("html").send(
       renderAppPage({
         operator: req.auth,
@@ -723,6 +794,9 @@ router.get("/app", requireWebAuth, async (req, res, next) => {
 
 router.post("/app/restaurants", requireWebAuth, async (req, res, next) => {
   try {
+    if (!canManageAllRestaurants(req.auth)) {
+      return res.redirect("/app?error=Solo%20el%20admin%20puede%20crear%20restaurantes.");
+    }
     const restaurant = await createRestaurant(req.body || {});
     return res.redirect(
       `/app?success=${encodeURIComponent(`Restaurante creado: ${restaurant.name}`)}`
@@ -738,7 +812,7 @@ router.post("/app/restaurants", requireWebAuth, async (req, res, next) => {
 
 router.get("/app/restaurants/:slug", requireWebAuth, async (req, res, next) => {
   try {
-    const restaurant = await loadRestaurantOrRedirect(req.params.slug, res);
+    const restaurant = await loadRestaurantOrRedirect(req.params.slug, req.auth, res);
     if (!restaurant) return undefined;
 
     const [summary, leads, promotions] = await Promise.all([
@@ -769,7 +843,7 @@ router.get("/app/restaurants/:slug", requireWebAuth, async (req, res, next) => {
 
 router.get("/app/restaurants/:slug/leads", requireWebAuth, async (req, res, next) => {
   try {
-    const restaurant = await loadRestaurantOrRedirect(req.params.slug, res);
+    const restaurant = await loadRestaurantOrRedirect(req.params.slug, req.auth, res);
     if (!restaurant) return undefined;
     const leads = await listLeadsByRestaurant(restaurant.id, 200);
 
@@ -791,8 +865,8 @@ router.get("/app/restaurants/:slug/leads", requireWebAuth, async (req, res, next
 router.post("/app/restaurants/:slug/leads", requireWebAuth, async (req, res) => {
   try {
     const restaurant = await getRestaurantBySlug(req.params.slug);
-    if (!restaurant) {
-      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+      return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     }
 
     const result = await createLead({
@@ -831,7 +905,7 @@ router.post("/app/restaurants/:slug/leads", requireWebAuth, async (req, res) => 
 
 router.get("/app/restaurants/:slug/promotions", requireWebAuth, async (req, res, next) => {
   try {
-    const restaurant = await loadRestaurantOrRedirect(req.params.slug, res);
+    const restaurant = await loadRestaurantOrRedirect(req.params.slug, req.auth, res);
     if (!restaurant) return undefined;
     const promotions = await listPromotionsByRestaurant(restaurant.id, 200);
     const promotionsWithEligibility = await Promise.all(
@@ -864,8 +938,8 @@ router.get("/app/restaurants/:slug/promotions", requireWebAuth, async (req, res,
 router.post("/app/restaurants/:slug/promotions", requireWebAuth, async (req, res) => {
   try {
     const restaurant = await getRestaurantBySlug(req.params.slug);
-    if (!restaurant) {
-      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+      return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     }
 
     const promotion = await createPromotion({
@@ -897,7 +971,7 @@ router.get(
   requireWebAuth,
   async (req, res, next) => {
     try {
-      const restaurant = await loadRestaurantOrRedirect(req.params.slug, res);
+      const restaurant = await loadRestaurantOrRedirect(req.params.slug, req.auth, res);
       if (!restaurant) return undefined;
       const promotion = await getPromotionById(Number.parseInt(req.params.promotionId, 10));
       if (!promotion || promotion.restaurant_id !== restaurant.id) {
@@ -937,8 +1011,8 @@ router.post(
   async (req, res) => {
     try {
       const restaurant = await getRestaurantBySlug(req.params.slug);
-      if (!restaurant) {
-        return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+      if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+        return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
 
       const promotion = await getPromotionById(Number.parseInt(req.params.promotionId, 10));
@@ -978,6 +1052,16 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
+      const restaurant = await getRestaurantBySlug(req.params.slug);
+      if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+        return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
+      }
+      const promotion = await getPromotionById(Number.parseInt(req.params.promotionId, 10));
+      if (!promotion || promotion.restaurant_id !== restaurant.id) {
+        return res.redirect(
+          `${restaurantSectionPath(restaurant.slug, "promotions")}?error=Promocion%20no%20encontrada.`
+        );
+      }
       const duplicated = await duplicatePromotion(Number.parseInt(req.params.promotionId, 10));
       return res.redirect(
         `${restaurantSectionPath(req.params.slug, "promotions")}?success=${encodeURIComponent(
@@ -999,6 +1083,16 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
+      const restaurant = await getRestaurantBySlug(req.params.slug);
+      if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+        return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
+      }
+      const promotion = await getPromotionById(Number.parseInt(req.params.promotionId, 10));
+      if (!promotion || promotion.restaurant_id !== restaurant.id) {
+        return res.redirect(
+          `${restaurantSectionPath(restaurant.slug, "promotions")}?error=Promocion%20no%20encontrada.`
+        );
+      }
       await archivePromotion(Number.parseInt(req.params.promotionId, 10));
       return res.redirect(
         `${restaurantSectionPath(req.params.slug, "promotions")}?success=Promocion%20archivada.`
@@ -1018,6 +1112,16 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
+      const restaurant = await getRestaurantBySlug(req.params.slug);
+      if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+        return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
+      }
+      const promotion = await getPromotionById(Number.parseInt(req.params.promotionId, 10));
+      if (!promotion || promotion.restaurant_id !== restaurant.id) {
+        return res.redirect(
+          `${restaurantSectionPath(restaurant.slug, "promotions")}?error=Promocion%20no%20encontrada.`
+        );
+      }
       await deletePromotion(Number.parseInt(req.params.promotionId, 10));
       return res.redirect(
         `${restaurantSectionPath(req.params.slug, "promotions")}?success=Promocion%20borrada.`
@@ -1038,8 +1142,8 @@ router.post(
   async (req, res, next) => {
     try {
       const restaurant = await getRestaurantBySlug(req.params.slug);
-      if (!restaurant) {
-        return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+      if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+        return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
 
       const promotionId = Number.parseInt(req.params.promotionId, 10);
@@ -1091,8 +1195,11 @@ router.post(
 
 router.get("/app/restaurants/:slug/settings", requireWebAuth, async (req, res, next) => {
   try {
-    const restaurant = await loadRestaurantOrRedirect(req.params.slug, res);
+    const restaurant = await loadRestaurantOrRedirect(req.params.slug, req.auth, res);
     if (!restaurant) return undefined;
+    const managers = canManageAllRestaurants(req.auth)
+      ? await listRestaurantManagers(restaurant.id)
+      : [];
 
     return res.type("html").send(
       renderRestaurantShell({
@@ -1101,7 +1208,11 @@ router.get("/app/restaurants/:slug/settings", requireWebAuth, async (req, res, n
         activeSection: "settings",
         errorMessage: String(req.query.error || "").trim(),
         successMessage: String(req.query.success || "").trim(),
-        content: renderSettingsSection({ restaurant }),
+        content: renderSettingsSection({
+          restaurant,
+          operator: req.auth,
+          managers,
+        }),
       })
     );
   } catch (error) {
@@ -1111,6 +1222,10 @@ router.get("/app/restaurants/:slug/settings", requireWebAuth, async (req, res, n
 
 router.post("/app/restaurants/:slug/settings", requireWebAuth, async (req, res) => {
   try {
+    const restaurant = await getRestaurantBySlug(req.params.slug);
+    if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
+      return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
+    }
     await updateRestaurantSettings(req.params.slug, req.body || {});
     return res.redirect(
       `${restaurantSectionPath(req.params.slug, "settings")}?success=Configuracion%20guardada.`
@@ -1119,6 +1234,36 @@ router.post("/app/restaurants/:slug/settings", requireWebAuth, async (req, res) 
     return res.redirect(
       `${restaurantSectionPath(req.params.slug, "settings")}?error=${encodeURIComponent(
         error.statusCode ? error.message : "No se pudo guardar la configuracion."
+      )}`
+    );
+  }
+});
+
+router.post("/app/restaurants/:slug/managers", requireWebAuth, async (req, res) => {
+  try {
+    if (!canManageAllRestaurants(req.auth)) {
+      return res.redirect("/app?error=Solo%20el%20admin%20puede%20crear%20managers.");
+    }
+    const restaurant = await getRestaurantBySlug(req.params.slug);
+    if (!restaurant) {
+      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    }
+    const result = await createRestaurantManager({
+      restaurantId: restaurant.id,
+      email: req.body.email,
+      password: req.body.password,
+    });
+    return res.redirect(
+      `${restaurantSectionPath(restaurant.slug, "settings")}?success=${encodeURIComponent(
+        result.created
+          ? `Manager creado: ${result.email}`
+          : `Manager actualizado/asignado: ${result.email}`
+      )}`
+    );
+  } catch (error) {
+    return res.redirect(
+      `${restaurantSectionPath(req.params.slug, "settings")}?error=${encodeURIComponent(
+        error.statusCode ? error.message : "No se pudo crear el manager."
       )}`
     );
   }

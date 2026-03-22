@@ -50,9 +50,20 @@ async function findOperatorByEmail(email) {
   );
 }
 
+async function getAccessibleRestaurantIds(operatorId) {
+  const rows = await db.many(
+    `SELECT restaurant_id
+     FROM operator_restaurant_access
+     WHERE operator_id = $1
+     ORDER BY restaurant_id ASC`,
+    [operatorId]
+  );
+  return rows.map((row) => Number(row.restaurant_id));
+}
+
 async function findActiveSessionByToken(token) {
   const tokenHash = hashSessionToken(token);
-  return db.one(
+  const session = await db.one(
     `SELECT
         sessions.id,
         sessions.operator_id,
@@ -68,6 +79,17 @@ async function findActiveSessionByToken(token) {
        AND operators.is_active = 1`,
     [tokenHash]
   );
+  if (!session) return null;
+
+  const restaurantIds =
+    session.role === "admin"
+      ? []
+      : await getAccessibleRestaurantIds(session.operator_id);
+
+  return {
+    ...session,
+    restaurant_ids: restaurantIds,
+  };
 }
 
 async function login(email, password) {
@@ -88,12 +110,16 @@ async function login(email, password) {
     [operator.id, tokenHash, env.sessionTtlDays]
   );
 
+  const restaurantIds =
+    operator.role === "admin" ? [] : await getAccessibleRestaurantIds(operator.id);
+
   return {
     token,
     operator: {
       id: operator.id,
       email: operator.email,
       role: operator.role,
+      restaurantIds,
     },
   };
 }
@@ -135,6 +161,100 @@ async function upsertAdmin(email, password) {
   return { created: true, email: inserted.email };
 }
 
+function canManageAllRestaurants(operator) {
+  return operator?.role === "admin";
+}
+
+function canAccessRestaurant(operator, restaurantId) {
+  if (!operator) return false;
+  if (canManageAllRestaurants(operator)) return true;
+  return Array.isArray(operator.restaurant_ids)
+    ? operator.restaurant_ids.includes(Number(restaurantId))
+    : Array.isArray(operator.restaurantIds)
+      ? operator.restaurantIds.includes(Number(restaurantId))
+      : false;
+}
+
+async function listRestaurantManagers(restaurantId) {
+  return db.many(
+    `SELECT
+        operators.id,
+        operators.email,
+        operators.role,
+        operators.is_active,
+        operator_restaurant_access.created_at
+     FROM operator_restaurant_access
+     JOIN operators ON operators.id = operator_restaurant_access.operator_id
+     WHERE operator_restaurant_access.restaurant_id = $1
+     ORDER BY operators.email ASC`,
+    [restaurantId]
+  );
+}
+
+async function createRestaurantManager({ restaurantId, email, password }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const cleanPassword = String(password || "");
+  if (!normalizedEmail || !cleanPassword) {
+    const error = new Error("Email y password son obligatorios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return db.tx(async (tx) => {
+    const existing = await tx.one(
+      `SELECT id, email, role
+       FROM operators
+       WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    if (existing && existing.role === "admin") {
+      const error = new Error("Ese email ya pertenece a un admin global.");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const passwordHash = hashPassword(cleanPassword);
+    let operatorId;
+    let created = false;
+
+    if (existing) {
+      operatorId = existing.id;
+      await tx.query(
+        `UPDATE operators
+         SET password_hash = $1,
+             role = 'manager',
+             is_active = 1
+         WHERE id = $2`,
+        [passwordHash, operatorId]
+      );
+    } else {
+      const inserted = await tx.one(
+        `INSERT INTO operators (email, password_hash, role, is_active)
+         VALUES ($1, $2, 'manager', 1)
+         RETURNING id`,
+        [normalizedEmail, passwordHash]
+      );
+      operatorId = inserted.id;
+      created = true;
+    }
+
+    await tx.query(
+      `INSERT INTO operator_restaurant_access (operator_id, restaurant_id)
+       VALUES ($1, $2)
+       ON CONFLICT (operator_id, restaurant_id) DO NOTHING`,
+      [operatorId, restaurantId]
+    );
+
+    return {
+      created,
+      email: normalizedEmail,
+      operatorId,
+      restaurantId,
+    };
+  });
+}
+
 async function bootstrapAdmin() {
   if (env.bootstrapAdminEmail && env.bootstrapAdminPassword) {
     const result = await upsertAdmin(
@@ -163,5 +283,9 @@ module.exports = {
   login,
   logout,
   upsertAdmin,
+  canManageAllRestaurants,
+  canAccessRestaurant,
+  listRestaurantManagers,
+  createRestaurantManager,
   bootstrapAdmin,
 };

@@ -9,6 +9,18 @@ async function applySchema() {
   await db.query(
     "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP"
   );
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS operator_restaurant_access (
+      id BIGSERIAL PRIMARY KEY,
+      operator_id BIGINT NOT NULL REFERENCES operators(id),
+      restaurant_id BIGINT NOT NULL REFERENCES restaurants(id),
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (operator_id, restaurant_id)
+    )
+  `);
+  await db.query(
+    "CREATE INDEX IF NOT EXISTS idx_operator_restaurant_access_restaurant ON operator_restaurant_access (restaurant_id)"
+  );
 }
 
 module.exports = { applySchema };

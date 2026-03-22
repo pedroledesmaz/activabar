@@ -51,6 +51,7 @@ router.get("/me", requireAuth, (req, res) => {
       id: req.auth.operator_id,
       email: req.auth.email,
       role: req.auth.role,
+      restaurantIds: req.auth.restaurant_ids || [],
     },
   });
 });
