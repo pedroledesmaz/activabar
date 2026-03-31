@@ -1,10 +1,12 @@
 const { escapeHtml } = require("../../lib/html");
 
 function renderMarketingLanding({
+  demoHref = "/demo",
   dashboardHref = "/login",
   privacyHref = "/privacy",
 } = {}) {
-  const ctaHref = escapeHtml(dashboardHref);
+  const ctaHref = escapeHtml(demoHref);
+  const panelHref = escapeHtml(dashboardHref);
   const privacyLink = escapeHtml(privacyHref);
 
   return `<!DOCTYPE html>
@@ -899,7 +901,7 @@ function renderMarketingLanding({
         </p>
         <div class="hero-actions" style="justify-content: center;">
           <a class="cta" href="${ctaHref}">Solicitar demo</a>
-          <a class="cta-secondary" href="/login">Entrar al panel</a>
+          <a class="cta-secondary" href="${panelHref}">Entrar al panel</a>
         </div>
       </div>
     </section>
@@ -925,15 +927,15 @@ function renderMarketingLanding({
           <h4>Empresa</h4>
           <div class="footer-links">
             <a href="#faq">FAQ</a>
-            <a href="/login">Acceso</a>
+            <a href="${panelHref}">Acceso</a>
             <a href="${privacyLink}">Privacidad</a>
           </div>
         </div>
         <div>
           <h4>Uso</h4>
           <div class="footer-links">
-            <a href="/health">Health</a>
-            <a href="/health/full">Estado del servicio</a>
+            <a href="${ctaHref}">Solicitar demo</a>
+            <a href="${panelHref}">Entrar al panel</a>
           </div>
         </div>
       </div>
@@ -1013,7 +1015,245 @@ function renderPrivacyPage({ homeHref = "/" } = {}) {
 </html>`;
 }
 
+function renderDemoRequestPage({
+  formAction = "/demo",
+  homeHref = "/",
+  errorMessage = "",
+  successMessage = "",
+  values = {},
+} = {}) {
+  const action = escapeHtml(formAction);
+  const homeLink = escapeHtml(homeHref);
+  const errorBanner = errorMessage
+    ? `<div class="banner error">${escapeHtml(errorMessage)}</div>`
+    : "";
+  const successBanner = successMessage
+    ? `<div class="banner ok">${escapeHtml(successMessage)}</div>`
+    : "";
+  const field = (name) => escapeHtml(values[name] || "");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ActivaBar | Solicitar demo</title>
+    <style>
+      :root {
+        --bg: #faf9f5;
+        --panel: rgba(255,255,255,0.86);
+        --text: #1f241a;
+        --muted: #5f6656;
+        --line: rgba(62, 82, 25, 0.12);
+        --olive: #3e5219;
+        --olive-2: #556b2f;
+        --wine: #af2b3e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(85, 107, 47, 0.14), transparent 28%),
+          linear-gradient(180deg, #f7f4ec 0%, #faf9f5 100%);
+      }
+      .wrap {
+        width: min(1100px, calc(100vw - 32px));
+        margin: 40px auto 72px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--olive);
+        text-decoration: none;
+      }
+      .back {
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.85fr);
+        gap: 24px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: 28px;
+        box-shadow: 0 22px 54px rgba(25, 31, 18, 0.08);
+      }
+      h1, h2, p { margin-top: 0; }
+      h1, h2 { color: var(--olive); }
+      p { color: var(--muted); line-height: 1.7; }
+      .banner {
+        margin-bottom: 18px;
+        border-radius: 16px;
+        padding: 14px 16px;
+        font-size: 14px;
+      }
+      .banner.error {
+        color: #7b1826;
+        background: rgba(175, 43, 62, 0.09);
+        border: 1px solid rgba(175, 43, 62, 0.28);
+      }
+      .banner.ok {
+        color: #1f4d17;
+        background: rgba(85, 107, 47, 0.12);
+        border: 1px solid rgba(85, 107, 47, 0.28);
+      }
+      form {
+        display: grid;
+        gap: 16px;
+      }
+      .grid-2 {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+      input, textarea {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        padding: 14px 16px;
+        font: inherit;
+        color: var(--text);
+        background: rgba(255,255,255,0.86);
+      }
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 14px 22px;
+        font: inherit;
+        font-weight: 800;
+        color: #fff;
+        background: linear-gradient(15deg, var(--olive), var(--olive-2));
+        cursor: pointer;
+      }
+      .small {
+        font-size: 0.9rem;
+      }
+      .hidden-field {
+        position: absolute;
+        left: -9999px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+      @media (max-width: 900px) {
+        .panel,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <a class="brand" href="${homeLink}">ActivaBar</a>
+        <a class="back" href="${homeLink}">Volver a la web</a>
+      </div>
+      <div class="panel">
+        <section class="card">
+          <p>Solicitar demo</p>
+          <h1>Cuéntame qué local tienes y te escribo.</h1>
+          <p>
+            Déjame tus datos y el contexto de tu bar o restaurante. Así puedo
+            enseñarte cómo encajaría ActivaBar en tu operativa real.
+          </p>
+          ${errorBanner}
+          ${successBanner}
+          <form method="post" action="${action}">
+            <div class="grid-2">
+              <div>
+                <label for="name">Nombre</label>
+                <input id="name" name="name" required value="${field("name")}" />
+              </div>
+              <div>
+                <label for="businessName">Nombre del local</label>
+                <input id="businessName" name="businessName" required value="${field("businessName")}" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" required value="${field("email")}" />
+              </div>
+              <div>
+                <label for="phone">WhatsApp o teléfono</label>
+                <input id="phone" name="phone" required value="${field("phone")}" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <label for="city">Ciudad</label>
+                <input id="city" name="city" value="${field("city")}" />
+              </div>
+              <div>
+                <label for="locationsCount">Número de locales</label>
+                <input id="locationsCount" name="locationsCount" type="number" min="1" step="1" value="${field("locationsCount")}" />
+              </div>
+            </div>
+            <div>
+              <label for="message">Cuéntame tu caso</label>
+              <textarea id="message" name="message" placeholder="Qué tipo de bar tienes, si ya usas WhatsApp, qué te gustaría medir o mejorar...">${field("message")}</textarea>
+            </div>
+            <div class="hidden-field" aria-hidden="true">
+              <label for="companyWebsite">No rellenar</label>
+              <input id="companyWebsite" name="companyWebsite" tabindex="-1" autocomplete="off" />
+            </div>
+            <button type="submit">Enviar solicitud</button>
+          </form>
+        </section>
+        <aside class="card">
+          <p>Qué reviso en la demo</p>
+          <h2>Lo que vamos a aterrizar contigo</h2>
+          <ul>
+            <li>Cómo captar leads con QR dentro del local.</li>
+            <li>Qué promociones encajan con tus horas flojas.</li>
+            <li>Cómo medir altas, bajas, envíos y retorno.</li>
+            <li>Qué WhatsApp Business y qué TPV usa tu bar.</li>
+            <li>Cómo dejar el sistema operativo para tu equipo.</li>
+          </ul>
+          <p class="small" style="margin-top: 18px;">
+            Este formulario no crea ningún restaurante ni da acceso al panel.
+            Solo registra una solicitud comercial para que pueda contactarte.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
 module.exports = {
   renderMarketingLanding,
+  renderDemoRequestPage,
   renderPrivacyPage,
 };

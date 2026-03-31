@@ -20,6 +20,7 @@ async function main() {
   await writeFile(
     "index.html",
     renderMarketingLanding({
+      demoHref: "https://app.activabar.es/demo",
       dashboardHref: "https://app.activabar.es/login",
       privacyHref: "/privacy/",
     })

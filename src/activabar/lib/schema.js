@@ -34,6 +34,24 @@ async function applySchema() {
     "CREATE INDEX IF NOT EXISTS idx_operator_restaurant_access_restaurant ON operator_restaurant_access (restaurant_id)"
   );
   await db.query(`
+    CREATE TABLE IF NOT EXISTS demo_requests (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      business_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      city TEXT,
+      locations_count INTEGER,
+      message TEXT,
+      source TEXT NOT NULL DEFAULT 'landing',
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await db.query(
+    "CREATE INDEX IF NOT EXISTS idx_demo_requests_created_at ON demo_requests (created_at DESC)"
+  );
+  await db.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_restaurants_twilio_sender_unique
       ON restaurants (twilio_whatsapp_from)
       WHERE twilio_whatsapp_from IS NOT NULL

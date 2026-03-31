@@ -3,7 +3,12 @@ const env = require("../../config/env");
 const { parseCookies } = require("../../../auth");
 const { appendSetCookie } = require("../../lib/http");
 const { escapeHtml, renderPage } = require("../../lib/html");
-const { renderMarketingLanding, renderPrivacyPage } = require("./public-site");
+const {
+  renderMarketingLanding,
+  renderDemoRequestPage,
+  renderPrivacyPage,
+} = require("./public-site");
+const { createDemoRequest } = require("../demo/service");
 const {
   buildCookie,
   buildClearedCookie,
@@ -955,6 +960,7 @@ router.get("/", async (req, res, next) => {
     }
     return res.type("html").send(
       renderMarketingLanding({
+        demoHref: "/demo",
         dashboardHref: session ? "/app" : "/login",
       })
     );
@@ -963,8 +969,73 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.get("/privacy", (_req, res) => {
-  res.type("html").send(renderPrivacyPage());
+router.get("/demo", (req, res) => {
+  const successMessage = String(req.query.success || "").trim();
+  const errorMessage = String(req.query.error || "").trim();
+  const homeHref = isAppHostname(req.hostname) ? "https://activabar.es" : "/";
+  res.type("html").send(
+    renderDemoRequestPage({
+      formAction: "/demo",
+      homeHref,
+      errorMessage,
+      successMessage,
+    })
+  );
+});
+
+router.post("/demo", async (req, res, next) => {
+  try {
+    const payload = {
+      name: String(req.body.name || "").trim(),
+      businessName: String(req.body.businessName || "").trim(),
+      email: String(req.body.email || "").trim().toLowerCase(),
+      phone: String(req.body.phone || "").trim(),
+      city: String(req.body.city || "").trim(),
+      locationsCount: String(req.body.locationsCount || "").trim(),
+      message: String(req.body.message || "").trim(),
+      companyWebsite: String(req.body.companyWebsite || "").trim(),
+    };
+
+    if (payload.companyWebsite) {
+      return res.redirect("/demo?success=Solicitud%20recibida.");
+    }
+
+    if (!payload.name || !payload.businessName || !payload.email || !payload.phone) {
+      return res.status(400).type("html").send(
+        renderDemoRequestPage({
+          formAction: "/demo",
+          homeHref: isAppHostname(req.hostname) ? "https://activabar.es" : "/",
+          errorMessage: "Faltan datos obligatorios.",
+          values: payload,
+        })
+      );
+    }
+
+    const locationsCount = payload.locationsCount
+      ? Number.parseInt(payload.locationsCount, 10)
+      : null;
+
+    await createDemoRequest({
+      name: payload.name,
+      businessName: payload.businessName,
+      email: payload.email,
+      phone: payload.phone,
+      city: payload.city,
+      locationsCount:
+        Number.isInteger(locationsCount) && locationsCount > 0 ? locationsCount : null,
+      message: payload.message,
+      source: req.hostname || "landing",
+    });
+
+    return res.redirect("/demo?success=Solicitud%20enviada.%20Te%20contactare%20pronto.");
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/privacy", (req, res) => {
+  const homeHref = isAppHostname(req.hostname) ? "https://activabar.es" : "/";
+  res.type("html").send(renderPrivacyPage({ homeHref }));
 });
 
 router.get("/login", (req, res) => {
