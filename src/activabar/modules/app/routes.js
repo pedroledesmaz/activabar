@@ -118,6 +118,11 @@ function restaurantSectionPath(slug, section) {
   return `${restaurantBasePath(slug)}/${section}`;
 }
 
+function isAppHostname(hostname = "") {
+  const value = String(hostname || "").toLowerCase();
+  return value === "app.activabar.es" || value.startsWith("app.");
+}
+
 function renderLoginPage(errorMessage = "") {
   const alert = errorMessage
     ? `<div class="banner error">${escapeHtml(errorMessage)}</div>`
@@ -945,6 +950,9 @@ async function loadRestaurantOrRedirect(slug, operator, res) {
 router.get("/", async (req, res, next) => {
   try {
     const session = await getWebSession(req);
+    if (isAppHostname(req.hostname)) {
+      return res.redirect(session ? "/app" : "/login");
+    }
     return res.type("html").send(
       renderMarketingLanding({
         dashboardHref: session ? "/app" : "/login",

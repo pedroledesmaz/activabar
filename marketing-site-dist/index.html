@@ -1,13 +1,4 @@
-const { escapeHtml } = require("../../lib/html");
-
-function renderMarketingLanding({
-  dashboardHref = "/login",
-  privacyHref = "/privacy",
-} = {}) {
-  const ctaHref = escapeHtml(dashboardHref);
-  const privacyLink = escapeHtml(privacyHref);
-
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -663,8 +654,8 @@ function renderMarketingLanding({
           <a href="#beneficios">Beneficios</a>
           <a href="#control">Producto</a>
           <a href="#faq">FAQ</a>
-          <a href="${privacyLink}">Privacidad</a>
-          <a class="cta" href="${ctaHref}">Solicitar demo</a>
+          <a href="/privacy/">Privacidad</a>
+          <a class="cta" href="https://app.activabar.es/login">Solicitar demo</a>
         </div>
       </div>
     </nav>
@@ -680,7 +671,7 @@ function renderMarketingLanding({
             desde un panel pensado para bares y restaurantes.
           </p>
           <div class="hero-actions">
-            <a class="cta" href="${ctaHref}">Solicitar demo</a>
+            <a class="cta" href="https://app.activabar.es/login">Solicitar demo</a>
             <a class="cta-secondary" href="#como-funciona">Ver como funciona</a>
           </div>
         </div>
@@ -898,7 +889,7 @@ function renderMarketingLanding({
           WhatsApp en un canal propio para hacer negocio cuando mas lo necesitas.
         </p>
         <div class="hero-actions" style="justify-content: center;">
-          <a class="cta" href="${ctaHref}">Solicitar demo</a>
+          <a class="cta" href="https://app.activabar.es/login">Solicitar demo</a>
           <a class="cta-secondary" href="/login">Entrar al panel</a>
         </div>
       </div>
@@ -926,7 +917,7 @@ function renderMarketingLanding({
           <div class="footer-links">
             <a href="#faq">FAQ</a>
             <a href="/login">Acceso</a>
-            <a href="${privacyLink}">Privacidad</a>
+            <a href="/privacy/">Privacidad</a>
           </div>
         </div>
         <div>
@@ -939,81 +930,4 @@ function renderMarketingLanding({
       </div>
     </footer>
   </body>
-</html>`;
-}
-
-function renderPrivacyPage({ homeHref = "/" } = {}) {
-  const homeLink = escapeHtml(homeHref);
-
-  return `<!DOCTYPE html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ActivaBar | Privacidad</title>
-    <style>
-      :root {
-        --bg: #faf9f5;
-        --text: #1f241a;
-        --muted: #5f6656;
-        --line: rgba(62, 82, 25, 0.12);
-        --olive: #3e5219;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
-      main {
-        width: min(860px, calc(100vw - 32px));
-        margin: 48px auto;
-        padding: 32px;
-        border-radius: 24px;
-        background: rgba(255,255,255,0.76);
-        border: 1px solid var(--line);
-      }
-      h1, h2 { color: var(--olive); }
-      p, li { color: var(--muted); line-height: 1.75; }
-      a { color: inherit; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <p><a href="${homeLink}">Volver a ActivaBar</a></p>
-      <h1>Privacidad</h1>
-      <p>
-        ActivaBar es un servicio para bares y restaurantes orientado a la captacion
-        y reactivacion de clientes mediante QR y WhatsApp.
-      </p>
-      <h2>Datos tratados</h2>
-      <p>
-        Podemos tratar telefono, origen del QR, consentimiento, actividad comercial
-        y datos operativos necesarios para prestar el servicio al restaurante.
-      </p>
-      <h2>Finalidad</h2>
-      <p>
-        Gestionar altas, bajas, comunicaciones promocionales y medicion basica del
-        rendimiento de las acciones comerciales del local.
-      </p>
-      <h2>Derechos</h2>
-      <p>
-        El usuario puede solicitar baja de comunicaciones y ejercer sus derechos de
-        acceso, rectificacion o supresion a traves del canal habilitado por el
-        restaurante responsable.
-      </p>
-      <h2>Contacto</h2>
-      <p>
-        Para consultas sobre privacidad o uso del servicio, utiliza el canal de
-        contacto del negocio que te dio acceso a la promocion.
-      </p>
-    </main>
-  </body>
-</html>`;
-}
-
-module.exports = {
-  renderMarketingLanding,
-  renderPrivacyPage,
-};
+</html>

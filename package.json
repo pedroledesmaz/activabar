@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "start:activabar": "node src/activabar/server.js",
+    "build:marketing-site": "node src/activabar/scripts/build-marketing-site.js",
     "seed": "node src/seed.js",
     "create-admin": "node src/create-admin.js",
     "create-admin:activabar": "node src/activabar/scripts/create-admin.js",
