@@ -4,7 +4,10 @@ const env = require("../../config/env");
 const logger = require("../../lib/logger");
 const db = require("../../lib/db");
 const { normalizePhone } = require("../../../phone");
-const { getRestaurantBySlugAny } = require("../restaurants/service");
+const {
+  getRestaurantBySlugAnyWithSecrets,
+  findRestaurantByWhatsAppSender,
+} = require("../restaurants/service");
 
 const router = express.Router();
 
@@ -68,11 +71,17 @@ function computeTwilioSignature(url, payload, authToken) {
   return crypto.createHmac("sha1", authToken).update(data, "utf8").digest("base64");
 }
 
-function validateTwilioSignature(req) {
+function resolveWebhookAuthToken(targetRestaurant) {
+  return String(
+    targetRestaurant?.twilio_auth_token || process.env.TWILIO_AUTH_TOKEN || ""
+  ).trim();
+}
+
+function validateTwilioSignature(req, targetRestaurant) {
   if (!env.twilioWebhookValidateSignature) return true;
 
   const providedSignature = String(req.get("x-twilio-signature") || "").trim();
-  const authToken = String(process.env.TWILIO_AUTH_TOKEN || "").trim();
+  const authToken = resolveWebhookAuthToken(targetRestaurant);
   if (!providedSignature || !authToken) {
     return false;
   }
@@ -138,10 +147,11 @@ async function applyInboundOptCommand({ restaurantId = null, phoneE164, bodyText
 }
 
 async function handleTwilioInboundWebhook(req, res, targetRestaurant) {
-  if (!validateTwilioSignature(req)) {
+  if (!validateTwilioSignature(req, targetRestaurant)) {
     logger.warn("twilio.webhook.invalid_signature", {
       path: req.originalUrl,
       requestId: req.requestId,
+      restaurantSlug: targetRestaurant?.slug || null,
     });
     return res.status(403).send("Forbidden");
   }
@@ -181,9 +191,20 @@ async function handleTwilioInboundWebhook(req, res, targetRestaurant) {
   return res.send(twimlMessage(responseText));
 }
 
+async function resolveRestaurantByInboundSender(req) {
+  const toRaw = String(req.body.To || "").replace(/^whatsapp:/i, "");
+  const senderPhone = normalizePhone(toRaw, env.defaultCountryCode);
+  if (!senderPhone) {
+    return null;
+  }
+
+  return findRestaurantByWhatsAppSender(senderPhone);
+}
+
 router.post("/twilio/whatsapp/inbound", async (req, res, next) => {
   try {
-    return await handleTwilioInboundWebhook(req, res, null);
+    const restaurant = await resolveRestaurantByInboundSender(req);
+    return await handleTwilioInboundWebhook(req, res, restaurant);
   } catch (error) {
     return next(error);
   }
@@ -191,7 +212,7 @@ router.post("/twilio/whatsapp/inbound", async (req, res, next) => {
 
 router.post("/twilio/whatsapp/:slug/inbound", async (req, res, next) => {
   try {
-    const restaurant = await getRestaurantBySlugAny(req.params.slug);
+    const restaurant = await getRestaurantBySlugAnyWithSecrets(req.params.slug);
     if (!restaurant) {
       return res.status(404).send("Restaurant not found");
     }

@@ -310,7 +310,10 @@ async function dispatchPromotion({ promotionId }) {
           r.slug AS restaurant_slug,
           r.name AS restaurant_name,
           r.is_archived,
-          r.promotion_template
+          r.promotion_template,
+          r.twilio_account_sid,
+          r.twilio_auth_token,
+          r.twilio_whatsapp_from
        FROM promotions p
        JOIN restaurants r ON r.id = p.restaurant_id
        WHERE p.id = $1`,
@@ -379,6 +382,9 @@ async function dispatchPromotion({ promotionId }) {
         const result = await sendWhatsAppMessage({
           to: lead.phone_e164,
           body: message,
+          accountSid: promotion.twilio_account_sid,
+          authToken: promotion.twilio_auth_token,
+          from: promotion.twilio_whatsapp_from,
         });
 
         try {

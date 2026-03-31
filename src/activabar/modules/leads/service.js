@@ -151,6 +151,9 @@ async function createLead({ restaurant, phone, sourceQr, rewardLabel, sendWelcom
       await sendWhatsAppMessage({
         to: normalizedPhone,
         body: confirmationBody,
+        accountSid: restaurant.twilio_account_sid,
+        authToken: restaurant.twilio_auth_token,
+        from: restaurant.twilio_whatsapp_from,
       });
       await db.query(
         `UPDATE leads

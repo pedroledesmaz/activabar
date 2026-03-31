@@ -16,7 +16,7 @@ const {
 } = require("../auth/service");
 const {
   listRestaurants,
-  getRestaurantBySlug,
+  getRestaurantBySlugWithSecrets,
   getRestaurantSummary,
   createRestaurant,
   updateRestaurantSettings,
@@ -750,6 +750,8 @@ function renderPromotionEditSection({ restaurant, promotion }) {
 }
 
 function renderSettingsSection({ restaurant, operator, managers }) {
+  const twilioConfigured = restaurant.twilio_sender_status === "configured";
+  const twilioWebhookPath = `/webhooks/twilio/whatsapp/${restaurant.slug}/inbound`;
   const managerItems = managers.length
     ? managers
         .map(
@@ -821,6 +823,45 @@ function renderSettingsSection({ restaurant, operator, managers }) {
               )}" />
             </div>
           </div>
+          ${
+            canManageAllRestaurants(operator)
+              ? `
+                <div class="grid-2">
+                  <div>
+                    <label for="twilioAccountSid">Twilio Account SID</label>
+                    <input id="twilioAccountSid" name="twilioAccountSid" value="${escapeHtml(
+                      restaurant.twilio_account_sid || ""
+                    )}" placeholder="AC..." />
+                  </div>
+                  <div>
+                    <label for="twilioWhatsappFrom">Numero WhatsApp del bar</label>
+                    <input id="twilioWhatsappFrom" name="twilioWhatsappFrom" value="${escapeHtml(
+                      restaurant.twilio_whatsapp_from || ""
+                    )}" placeholder="+34600111222" />
+                  </div>
+                </div>
+                <div>
+                  <label for="twilioAuthToken">Twilio Auth Token</label>
+                  <input
+                    id="twilioAuthToken"
+                    name="twilioAuthToken"
+                    type="password"
+                    placeholder="${
+                      twilioConfigured
+                        ? "Deja vacio para conservar el token actual"
+                        : "Pega el token de la subcuenta del bar"
+                    }"
+                  />
+                  <p class="muted">Estado sender: ${escapeHtml(
+                    twilioConfigured ? "Configurado" : "No configurado"
+                  )}</p>
+                  <p class="muted">Webhook inbound: <code>${escapeHtml(
+                    twilioWebhookPath
+                  )}</code></p>
+                </div>
+              `
+              : ""
+          }
           <button type="submit">Guardar configuracion</button>
         </form>
       </section>
@@ -888,7 +929,7 @@ function filterRestaurantsForOperator(restaurants, operator) {
 }
 
 async function loadRestaurantOrRedirect(slug, operator, res) {
-  const restaurant = await getRestaurantBySlug(slug);
+  const restaurant = await getRestaurantBySlugWithSecrets(slug);
   if (!restaurant) {
     res.redirect("/app?error=Restaurante%20no%20encontrado.");
     return null;
@@ -1040,7 +1081,7 @@ router.get("/app/restaurants/:slug/leads", requireWebAuth, async (req, res, next
 
 router.post("/app/restaurants/:slug/leads", requireWebAuth, async (req, res) => {
   try {
-    const restaurant = await getRestaurantBySlug(req.params.slug);
+    const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
     if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
       return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     }
@@ -1113,7 +1154,7 @@ router.get("/app/restaurants/:slug/promotions", requireWebAuth, async (req, res,
 
 router.post("/app/restaurants/:slug/promotions", requireWebAuth, async (req, res) => {
   try {
-    const restaurant = await getRestaurantBySlug(req.params.slug);
+    const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
     if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
       return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     }
@@ -1186,7 +1227,7 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
-      const restaurant = await getRestaurantBySlug(req.params.slug);
+      const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
       if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
         return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
@@ -1228,7 +1269,7 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
-      const restaurant = await getRestaurantBySlug(req.params.slug);
+      const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
       if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
         return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
@@ -1259,7 +1300,7 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
-      const restaurant = await getRestaurantBySlug(req.params.slug);
+      const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
       if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
         return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
@@ -1288,7 +1329,7 @@ router.post(
   requireWebAuth,
   async (req, res) => {
     try {
-      const restaurant = await getRestaurantBySlug(req.params.slug);
+      const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
       if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
         return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
@@ -1317,7 +1358,7 @@ router.post(
   requireWebAuth,
   async (req, res, next) => {
     try {
-      const restaurant = await getRestaurantBySlug(req.params.slug);
+      const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
       if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
         return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
       }
@@ -1398,7 +1439,7 @@ router.get("/app/restaurants/:slug/settings", requireWebAuth, async (req, res, n
 
 router.post("/app/restaurants/:slug/settings", requireWebAuth, async (req, res) => {
   try {
-    const restaurant = await getRestaurantBySlug(req.params.slug);
+    const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
     if (!restaurant || !canAccessRestaurant(req.auth, restaurant.id)) {
       return res.redirect("/app?error=No%20tienes%20acceso%20a%20ese%20restaurante.");
     }
@@ -1420,7 +1461,7 @@ router.post("/app/restaurants/:slug/managers", requireWebAuth, async (req, res) 
     if (!canManageAllRestaurants(req.auth)) {
       return res.redirect("/app?error=Solo%20el%20admin%20puede%20crear%20managers.");
     }
-    const restaurant = await getRestaurantBySlug(req.params.slug);
+    const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
     if (!restaurant) {
       return res.redirect("/app?error=Restaurante%20no%20encontrado.");
     }
