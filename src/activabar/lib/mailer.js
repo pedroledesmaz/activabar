@@ -35,7 +35,11 @@ function getTransporter() {
 async function sendDemoRequestNotification(request) {
   const transport = getTransporter();
   if (!transport) {
-    return { sent: false, skipped: true };
+    return {
+      sent: false,
+      skipped: true,
+      reason: "mailer_not_configured",
+    };
   }
 
   const subject = `Nueva solicitud demo: ${request.business_name}`;
@@ -63,7 +67,7 @@ async function sendDemoRequestNotification(request) {
     text,
   });
 
-  return { sent: true };
+  return { sent: true, skipped: false };
 }
 
 module.exports = {

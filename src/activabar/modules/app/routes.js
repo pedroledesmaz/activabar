@@ -1029,8 +1029,26 @@ router.post("/demo", async (req, res, next) => {
       source: req.hostname || "landing",
     });
 
+    logger.info("demo_request.created", {
+      demoRequestId: demoRequest.id,
+      email: demoRequest.email,
+      businessName: demoRequest.business_name,
+      source: demoRequest.source,
+    });
+
     try {
-      await sendDemoRequestNotification(demoRequest);
+      const notification = await sendDemoRequestNotification(demoRequest);
+      if (notification.skipped) {
+        logger.warn("demo_request.notification_skipped", {
+          demoRequestId: demoRequest.id,
+          reason: notification.reason || "unknown",
+        });
+      } else {
+        logger.info("demo_request.notification_sent", {
+          demoRequestId: demoRequest.id,
+          to: "configured_recipient",
+        });
+      }
     } catch (error) {
       logger.warn(
         "demo_request.notification_failed",
