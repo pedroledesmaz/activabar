@@ -9,6 +9,8 @@ const {
   renderPrivacyPage,
 } = require("./public-site");
 const { createDemoRequest } = require("../demo/service");
+const logger = require("../../lib/logger");
+const { sendDemoRequestNotification } = require("../../lib/mailer");
 const {
   buildCookie,
   buildClearedCookie,
@@ -1015,7 +1017,7 @@ router.post("/demo", async (req, res, next) => {
       ? Number.parseInt(payload.locationsCount, 10)
       : null;
 
-    await createDemoRequest({
+    const demoRequest = await createDemoRequest({
       name: payload.name,
       businessName: payload.businessName,
       email: payload.email,
@@ -1026,6 +1028,20 @@ router.post("/demo", async (req, res, next) => {
       message: payload.message,
       source: req.hostname || "landing",
     });
+
+    try {
+      await sendDemoRequestNotification(demoRequest);
+    } catch (error) {
+      logger.warn(
+        "demo_request.notification_failed",
+        {
+          demoRequestId: demoRequest.id,
+          email: demoRequest.email,
+          businessName: demoRequest.business_name,
+        },
+        error
+      );
+    }
 
     return res.redirect("/demo?success=Solicitud%20enviada.%20Te%20contactare%20pronto.");
   } catch (error) {

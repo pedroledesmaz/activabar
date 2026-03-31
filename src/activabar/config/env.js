@@ -53,6 +53,13 @@ const env = {
     process.env.TWILIO_WEBHOOK_VALIDATE_SIGNATURE,
     false
   ),
+  smtpHost: String(process.env.SMTP_HOST || "").trim(),
+  smtpPort: parseInteger(process.env.SMTP_PORT, 0),
+  smtpSecure: parseBoolean(process.env.SMTP_SECURE, false),
+  smtpUser: String(process.env.SMTP_USER || "").trim(),
+  smtpPass: String(process.env.SMTP_PASS || "").trim(),
+  smtpFrom: String(process.env.SMTP_FROM || process.env.SMTP_USER || "").trim(),
+  demoNotificationTo: String(process.env.DEMO_NOTIFICATION_TO || "").trim(),
   logFile: String(
     process.env.ACTIVABAR_LOG_FILE || "./data/logs/activabar.log"
   ).trim(),
