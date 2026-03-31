@@ -1,0 +1,1013 @@
+const { escapeHtml } = require("../../lib/html");
+
+function renderMarketingLanding({ dashboardHref = "/login" } = {}) {
+  const ctaHref = escapeHtml(dashboardHref);
+
+  return `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ActivaBar | QR + WhatsApp para bares y restaurantes</title>
+    <meta
+      name="description"
+      content="ActivaBar ayuda a bares y restaurantes a captar clientes con QR y reactivarlos por WhatsApp en horas de baja afluencia."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Serif:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #faf9f5;
+        --bg-soft: #f0eee7;
+        --panel: rgba(255, 255, 255, 0.78);
+        --panel-strong: #ffffff;
+        --text: #1f241a;
+        --muted: #5f6656;
+        --line: rgba(62, 82, 25, 0.12);
+        --olive: #3e5219;
+        --olive-2: #556b2f;
+        --wine: #af2b3e;
+        --sand: #6a5e33;
+        --cream: #faf9f5;
+        --shadow: 0 24px 60px rgba(25, 31, 18, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(85, 107, 47, 0.14), transparent 28%),
+          linear-gradient(180deg, #f7f4ec 0%, #faf9f5 100%);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      .container {
+        width: min(1180px, calc(100vw - 40px));
+        margin: 0 auto;
+      }
+
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        backdrop-filter: blur(18px);
+        background: rgba(250, 249, 245, 0.8);
+        border-bottom: 1px solid rgba(62, 82, 25, 0.08);
+      }
+
+      .nav-inner {
+        min-height: 76px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        font-family: "Noto Serif", serif;
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: var(--olive);
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        color: var(--muted);
+        font-size: 0.94rem;
+        font-weight: 700;
+      }
+
+      .nav-links a:hover {
+        color: var(--olive);
+      }
+
+      .cta,
+      .cta-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 14px 22px;
+        font-size: 0.96rem;
+        font-weight: 800;
+        transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
+      }
+
+      .cta:hover,
+      .cta-secondary:hover {
+        transform: translateY(-1px);
+      }
+
+      .cta {
+        color: #fff;
+        background: linear-gradient(15deg, var(--olive), var(--olive-2));
+        box-shadow: 0 16px 30px rgba(62, 82, 25, 0.24);
+      }
+
+      .cta-secondary {
+        color: var(--olive);
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(62, 82, 25, 0.14);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        min-height: 88vh;
+        display: flex;
+        align-items: center;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(250, 249, 245, 0.92) 0%, rgba(250, 249, 245, 0.78) 38%, rgba(250, 249, 245, 0.36) 100%),
+          url("https://lh3.googleusercontent.com/aida-public/AB6AXuArNBIxL5Y8sMQQh64iO1ZaX2O3D2NU9pGga3c-BgnsqAHUA1QlbedJwVwBL5wD_CnMPM5vYaScQyHK-sJND55SVobfOsxwmyRO4-xHplYbKH2Sdxly9qqref03tyeePzOsgbN6ALxj-K-TKHUOaERsm1QPzm1qyfi8kKFsp-RJe8jJByAtX9APermI-97_bn-nW5Rluz2Iz4pKcDlnhgvsEtS2l9pmvblZ92aXfSVcJPCkqcih8EXml3rjDrBmHsuJKa0rpkeGY9oG")
+            center/cover;
+        z-index: 0;
+      }
+
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        padding: 72px 0 88px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+        gap: 56px;
+        align-items: center;
+      }
+
+      .hero-copy h1,
+      .section-copy h2,
+      .cta-panel h2,
+      .faq-header h2 {
+        margin: 0;
+        font-family: "Noto Serif", serif;
+        color: var(--olive);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.68);
+        border: 1px solid rgba(62, 82, 25, 0.12);
+        color: var(--sand);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .hero-copy h1 {
+        font-size: clamp(3rem, 6vw, 5.5rem);
+        line-height: 0.96;
+        max-width: 760px;
+      }
+
+      .hero-copy p {
+        max-width: 620px;
+        margin: 22px 0 32px;
+        color: var(--muted);
+        font-size: 1.1rem;
+        line-height: 1.7;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .hero-side {
+        position: relative;
+        min-height: 520px;
+      }
+
+      .qr-card {
+        position: absolute;
+        right: 24px;
+        bottom: 0;
+        width: min(360px, 100%);
+        padding: 18px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        box-shadow: var(--shadow);
+        transform: rotate(5deg);
+      }
+
+      .qr-card img {
+        border-radius: 18px;
+        aspect-ratio: 4 / 5;
+        object-fit: cover;
+      }
+
+      .qr-card strong {
+        display: block;
+        margin-top: 16px;
+        font-family: "Noto Serif", serif;
+        font-size: 1.22rem;
+      }
+
+      .whatsapp-note {
+        position: absolute;
+        top: 28px;
+        left: 0;
+        max-width: 310px;
+        padding: 18px 20px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.74);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(18px);
+        box-shadow: var(--shadow);
+        transform: rotate(-4deg);
+      }
+
+      .whatsapp-note .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 0.76rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .tag-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #25d366;
+      }
+
+      .whatsapp-note p {
+        margin: 0;
+        line-height: 1.6;
+        color: var(--text);
+      }
+
+      section {
+        padding: 96px 0;
+      }
+
+      .section-copy {
+        text-align: center;
+        max-width: 720px;
+        margin: 0 auto 52px;
+      }
+
+      .section-copy h2 {
+        font-size: clamp(2.2rem, 4vw, 3.2rem);
+        margin-bottom: 14px;
+      }
+
+      .section-copy p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.75;
+      }
+
+      .steps {
+        background: var(--bg-soft);
+      }
+
+      .steps-grid,
+      .benefits-grid,
+      .dashboard-grid,
+      .faq-grid,
+      .proof-grid {
+        display: grid;
+        gap: 24px;
+      }
+
+      .steps-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .step-card,
+      .proof-card,
+      .faq-card {
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        padding: 28px;
+        box-shadow: 0 18px 36px rgba(36, 43, 27, 0.05);
+      }
+
+      .step-visual {
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        margin-bottom: 20px;
+        font-size: 1.8rem;
+        font-weight: 900;
+        color: #fff;
+      }
+
+      .olive { background: linear-gradient(145deg, var(--olive), var(--olive-2)); }
+      .wine { background: linear-gradient(145deg, var(--wine), #cf4a5d); }
+      .sand { background: linear-gradient(145deg, var(--sand), #8f7a4a); }
+
+      .step-card h3,
+      .benefits-copy h2,
+      .dashboard-panel h3,
+      .faq-card h3,
+      .proof-card h3 {
+        margin: 0 0 12px;
+        font-family: "Noto Serif", serif;
+      }
+
+      .step-card p,
+      .benefits-copy p,
+      .faq-card p,
+      .proof-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .benefits-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(340px, 0.96fr);
+        align-items: center;
+      }
+
+      .benefits-copy h2 {
+        font-size: clamp(2.15rem, 4vw, 3rem);
+        color: var(--olive);
+      }
+
+      .benefit-list {
+        display: grid;
+        gap: 20px;
+        margin-top: 28px;
+      }
+
+      .benefit-item {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .benefit-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 1.45rem;
+        font-weight: 800;
+      }
+
+      .benefit-item strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 1.06rem;
+      }
+
+      .benefits-image {
+        position: relative;
+        border-radius: 32px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .benefits-image img {
+        width: 100%;
+        min-height: 520px;
+        object-fit: cover;
+      }
+
+      .benefits-image::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(38, 29, 15, 0.06), rgba(20, 16, 9, 0.34));
+      }
+
+      .dashboard {
+        background: linear-gradient(180deg, #f1eee6 0%, #f9f7f1 100%);
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1.45fr 0.7fr 0.7fr;
+        grid-template-rows: minmax(210px, auto) minmax(210px, auto);
+      }
+
+      .dashboard-panel {
+        border-radius: 28px;
+        background: var(--panel-strong);
+        border: 1px solid var(--line);
+        padding: 28px;
+        box-shadow: 0 20px 46px rgba(39, 47, 28, 0.07);
+      }
+
+      .dashboard-panel.wide {
+        grid-row: span 2;
+      }
+
+      .metric-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .chart {
+        margin-top: 30px;
+        height: 280px;
+        display: flex;
+        align-items: end;
+        gap: 14px;
+      }
+
+      .bar {
+        flex: 1;
+        border-radius: 18px 18px 0 0;
+        background: linear-gradient(180deg, rgba(85, 107, 47, 0.32), rgba(62, 82, 25, 0.98));
+      }
+
+      .dashboard-panel h3 {
+        font-size: 1.8rem;
+        color: var(--olive);
+      }
+
+      .metric-value {
+        margin-top: 20px;
+        font-family: "Noto Serif", serif;
+        font-size: clamp(2.4rem, 4vw, 3.7rem);
+        color: var(--olive);
+      }
+
+      .dashboard-panel.highlight {
+        color: #fff;
+        background: linear-gradient(145deg, var(--olive), var(--olive-2));
+      }
+
+      .dashboard-panel.highlight h3,
+      .dashboard-panel.highlight .metric-value,
+      .dashboard-panel.highlight .metric-tag,
+      .dashboard-panel.highlight p {
+        color: #fff;
+      }
+
+      .proof-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .proof-card {
+        position: relative;
+        padding-top: 34px;
+      }
+
+      .proof-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 28px;
+        width: 56px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--wine), rgba(175, 43, 62, 0.2));
+      }
+
+      .faq-header {
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto 40px;
+      }
+
+      .faq-header h2 {
+        font-size: clamp(2.2rem, 4vw, 3rem);
+      }
+
+      .faq-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .faq-card h3 {
+        font-size: 1.12rem;
+        color: var(--olive);
+      }
+
+      .cta-band {
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(45, 66, 17, 0.93), rgba(53, 74, 22, 0.96)),
+          radial-gradient(circle at top, rgba(208, 235, 161, 0.12), transparent 25%);
+        color: #fff;
+      }
+
+      .cta-band::before {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 160px;
+        background:
+          radial-gradient(circle at 8% 100%, rgba(208, 235, 161, 0.22), transparent 30%),
+          radial-gradient(circle at 30% 100%, rgba(208, 235, 161, 0.16), transparent 26%),
+          radial-gradient(circle at 72% 100%, rgba(208, 235, 161, 0.16), transparent 28%),
+          radial-gradient(circle at 92% 100%, rgba(208, 235, 161, 0.2), transparent 28%);
+      }
+
+      .cta-panel {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        padding: 26px 0 18px;
+      }
+
+      .cta-panel h2 {
+        font-size: clamp(2.4rem, 4vw, 3.5rem);
+        color: #fff;
+      }
+
+      .cta-panel p {
+        max-width: 640px;
+        margin: 18px auto 30px;
+        color: rgba(255, 255, 255, 0.86);
+        line-height: 1.8;
+      }
+
+      .footer {
+        background: #efebe0;
+        border-top: 1px solid rgba(62, 82, 25, 0.08);
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr));
+        gap: 28px;
+      }
+
+      .footer h4 {
+        margin: 0 0 14px;
+        font-family: "Noto Serif", serif;
+        color: var(--olive);
+      }
+
+      .footer p,
+      .footer a {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .footer-links {
+        display: grid;
+        gap: 10px;
+      }
+
+      @media (max-width: 1040px) {
+        .hero-inner,
+        .benefits-grid,
+        .footer-grid,
+        .steps-grid,
+        .proof-grid,
+        .dashboard-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-side {
+          min-height: auto;
+          padding-top: 24px;
+        }
+
+        .qr-card,
+        .whatsapp-note {
+          position: relative;
+          transform: none;
+          left: auto;
+          right: auto;
+          top: auto;
+          bottom: auto;
+          max-width: 100%;
+          margin: 0 auto 24px;
+        }
+
+        .dashboard-panel.wide {
+          grid-row: auto;
+        }
+
+        .nav-links {
+          display: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          width: min(100vw - 24px, 1180px);
+        }
+
+        .hero-copy h1 {
+          font-size: 2.8rem;
+        }
+
+        section {
+          padding: 78px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="site-nav">
+      <div class="container nav-inner">
+        <a href="/" class="brand">ActivaBar</a>
+        <div class="nav-links">
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#beneficios">Beneficios</a>
+          <a href="#control">Producto</a>
+          <a href="#faq">FAQ</a>
+          <a href="/privacy">Privacidad</a>
+          <a class="cta" href="${ctaHref}">Solicitar demo</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <div class="eyebrow">QR + WhatsApp para hosteleria</div>
+          <h1>Atrae, fideliza y activa tu bar en horas bajas</h1>
+          <p>
+            Convierte el trafico de tu local en una base de clientes propia. Capta
+            leads con QR, activa promociones por WhatsApp y mide resultados reales
+            desde un panel pensado para bares y restaurantes.
+          </p>
+          <div class="hero-actions">
+            <a class="cta" href="${ctaHref}">Solicitar demo</a>
+            <a class="cta-secondary" href="#como-funciona">Ver como funciona</a>
+          </div>
+        </div>
+
+        <div class="hero-side" aria-hidden="true">
+          <div class="whatsapp-note">
+            <div class="tag"><span class="tag-dot"></span> WhatsApp Business</div>
+            <p>"Tu promo para hoy ya esta activa. Envia clientes a la barra de 17:00 a 19:00 sin depender de redes ni descuentos a ciegas."</p>
+          </div>
+
+          <div class="qr-card">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRv7subrwgmbvMtoq6STYhyjKPdttJAM1cu2OMEBRocPg6Lm8h7iCA_e-87IrIgMb00ppoj2bUggSx2izzG_gRvnEjml97bh_5KvuJ4fZlkkp2OEqLXva1cxOwLWKjZZMHPtG6iqZcAAK0P6cRQJp5L3Rdf6RFkrcqxr4n5oukeCtK82JJDxHstsF1gqquESP7yV82LbK9MSPl-j4kc_By6kiBncXVyrZSVnqkslmp6kkBWlQV6Y5ODRGCvWVxX8ZdT-e04pnXdaY_"
+              alt="QR promocional de ActivaBar"
+            />
+            <strong>Escanea. Captura. Reactiva.</strong>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section id="como-funciona" class="steps">
+      <div class="container">
+        <div class="section-copy">
+          <h2>Como funciona</h2>
+          <p>
+            ActivaBar esta pensado para que un bar pueda empezar rapido: captar
+            clientes con un QR, enviar una promo por WhatsApp y medir si esa
+            accion devuelve movimiento al local.
+          </p>
+        </div>
+
+        <div class="steps-grid">
+          <article class="step-card">
+            <div class="step-visual olive">QR</div>
+            <h3>1. El cliente escanea</h3>
+            <p>
+              El cliente deja su numero desde un QR en mesa, barra o carta. Sin
+              apps, sin friccion y con consentimiento registrado.
+            </p>
+          </article>
+
+          <article class="step-card">
+            <div class="step-visual wine">WA</div>
+            <h3>2. Recibe tu mensaje</h3>
+            <p>
+              El local activa mensajes de bienvenida y promociones en WhatsApp
+              desde su propio numero, con control total del envio.
+            </p>
+          </article>
+
+          <article class="step-card">
+            <div class="step-visual sand">ROI</div>
+            <h3>3. Mides el impacto</h3>
+            <p>
+              Leads, entregas, bajas, promociones y ROI estimado en un panel
+              simple para tomar decisiones comerciales.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="beneficios">
+      <div class="container benefits-grid">
+        <div class="benefits-copy">
+          <h2>Beneficios para tu local</h2>
+          <p>
+            ActivaBar no es un CRM generico. Es una herramienta comercial para
+            hosteleria: orientada a llenar horas flojas, recuperar clientes y
+            tener un canal propio que puedas activar cuando el local lo necesite.
+          </p>
+
+          <div class="benefit-list">
+            <div class="benefit-item">
+              <div class="benefit-icon olive">+</div>
+              <div>
+                <strong>Llena horas valle</strong>
+                <p>Activa promociones cuando realmente necesitas traccion en sala, no cuando ya vas lleno.</p>
+              </div>
+            </div>
+
+            <div class="benefit-item">
+              <div class="benefit-icon wine">DB</div>
+              <div>
+                <strong>Tu base de clientes es tuya</strong>
+                <p>Menos dependencia de plataformas externas. Mas control sobre recurrencia y comunicacion.</p>
+              </div>
+            </div>
+
+            <div class="benefit-item">
+              <div class="benefit-icon sand">OK</div>
+              <div>
+                <strong>Operacion simple</strong>
+                <p>Panel claro, mensajes por WhatsApp y una experiencia pensada para que el local no se complique.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="benefits-image">
+          <img
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxzCEbhrMzLovZxyPM2GLtRHyhmYcVdaehhNsjQJlEABEsAKytq7T1hNZplJ0iTZyeH5QZtgFGnMyTyWq-c8cq6vWbWC6sHSEWYtH66-J01QbFR0KRAmmmf_40_k6dR8460h06eObOk5dSD_WB_Cb77CBg8x7w8MvNPRL0WTz5VgqC4B4xV5biMPfFEO268yAsPRt6Vi_4EzAmYfK-M5O1x84hmmKJfBbgUbXh_LLbjmes7_YkImMCun-h_yHGnNOGLOWQYxqrcSLP"
+            alt="Interior de bar premium"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section id="control" class="dashboard">
+      <div class="container">
+        <div class="section-copy">
+          <h2>Tu centro de control</h2>
+          <p>
+            Visualiza el crecimiento de tu base de clientes, el rendimiento de
+            tus promociones y el estado de tus envios desde una interfaz clara y
+            orientada a negocio.
+          </p>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="dashboard-panel wide">
+            <div class="metric-tag">Crecimiento semanal</div>
+            <h3>Mas visibilidad para decidir mejor</h3>
+            <div class="chart" aria-hidden="true">
+              <div class="bar" style="height: 38%"></div>
+              <div class="bar" style="height: 54%"></div>
+              <div class="bar" style="height: 46%"></div>
+              <div class="bar" style="height: 79%"></div>
+              <div class="bar" style="height: 94%"></div>
+            </div>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="metric-tag">Leads captados</div>
+            <div class="metric-value">1.284</div>
+            <p>Nuevos clientes registrados desde QR y barra.</p>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="metric-tag">Clientes activos</div>
+            <div class="metric-value">852</div>
+            <p>Contactos listos para reactivar con una promo.</p>
+          </article>
+
+          <article class="dashboard-panel highlight" style="grid-column: span 2;">
+            <div class="metric-tag">ROI ultima promocion</div>
+            <div class="metric-value">450%</div>
+            <p>Estimacion clara del impacto economico de cada campana.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="section-copy">
+          <h2>Te resultara familiar</h2>
+          <p>
+            Pensado para negocios reales de hosteleria. Sin lenguaje tecnico, sin
+            dependencias innecesarias y con una implantacion entendible para el
+            duen~o del local.
+          </p>
+        </div>
+
+        <div class="proof-grid">
+          <article class="proof-card">
+            <h3>Captas clientes desde el local</h3>
+            <p>Convierte trafico fisico en una base de clientes propia sin pedir que descarguen nada.</p>
+          </article>
+          <article class="proof-card">
+            <h3>Activas promociones con criterio</h3>
+            <p>Usa WhatsApp para mover horas flojas con mensajes mas directos y medibles que una publicacion en redes.</p>
+          </article>
+          <article class="proof-card">
+            <h3>Mides mejor que con intuicion</h3>
+            <p>Leads, entregas, bajas y ROI en un mismo sitio para decidir que repites y que no.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="faq-header">
+          <h2>Preguntas frecuentes</h2>
+        </div>
+
+        <div class="faq-grid">
+          <article class="faq-card">
+            <h3>¿Necesita el cliente instalar una app?</h3>
+            <p>No. El flujo esta pensado para funcionar con QR y WhatsApp, sin descargar apps ni pasar por procesos largos.</p>
+          </article>
+          <article class="faq-card">
+            <h3>¿Sirve solo para cadenas grandes?</h3>
+            <p>No. Esta pensado para bares, cafeterias y restaurantes que quieren una herramienta simple para captar y reactivar clientes.</p>
+          </article>
+          <article class="faq-card">
+            <h3>¿Se puede medir el resultado de las promociones?</h3>
+            <p>Si. ActivaBar muestra leads, actividad, envios y ROI estimado para que el local vea el impacto comercial.</p>
+          </article>
+          <article class="faq-card">
+            <h3>¿Cada bar puede usar su propio numero de WhatsApp?</h3>
+            <p>Si. La plataforma ya esta preparada para operar con un sender Twilio distinto por restaurante.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band">
+      <div class="container cta-panel">
+        <h2>Haz que tu bar no deje de latir</h2>
+        <p>
+          Capta clientes en el local, activa promociones con criterio y convierte
+          WhatsApp en un canal propio para hacer negocio cuando mas lo necesitas.
+        </p>
+        <div class="hero-actions" style="justify-content: center;">
+          <a class="cta" href="${ctaHref}">Solicitar demo</a>
+          <a class="cta-secondary" href="/login">Entrar al panel</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container footer-grid" style="padding: 54px 0;">
+        <div>
+          <div class="brand" style="margin-bottom: 14px;">ActivaBar</div>
+          <p>
+            QR + WhatsApp para bares y restaurantes que quieren mas recurrencia,
+            mas control y un canal propio para activar horas bajas.
+          </p>
+        </div>
+        <div>
+          <h4>Producto</h4>
+          <div class="footer-links">
+            <a href="#como-funciona">Como funciona</a>
+            <a href="#beneficios">Beneficios</a>
+            <a href="#control">Panel</a>
+          </div>
+        </div>
+        <div>
+          <h4>Empresa</h4>
+          <div class="footer-links">
+            <a href="#faq">FAQ</a>
+            <a href="/login">Acceso</a>
+            <a href="/privacy">Privacidad</a>
+          </div>
+        </div>
+        <div>
+          <h4>Uso</h4>
+          <div class="footer-links">
+            <a href="/health">Health</a>
+            <a href="/health/full">Estado del servicio</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>`;
+}
+
+function renderPrivacyPage() {
+  return `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ActivaBar | Privacidad</title>
+    <style>
+      :root {
+        --bg: #faf9f5;
+        --text: #1f241a;
+        --muted: #5f6656;
+        --line: rgba(62, 82, 25, 0.12);
+        --olive: #3e5219;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        width: min(860px, calc(100vw - 32px));
+        margin: 48px auto;
+        padding: 32px;
+        border-radius: 24px;
+        background: rgba(255,255,255,0.76);
+        border: 1px solid var(--line);
+      }
+      h1, h2 { color: var(--olive); }
+      p, li { color: var(--muted); line-height: 1.75; }
+      a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">Volver a ActivaBar</a></p>
+      <h1>Privacidad</h1>
+      <p>
+        ActivaBar es un servicio para bares y restaurantes orientado a la captacion
+        y reactivacion de clientes mediante QR y WhatsApp.
+      </p>
+      <h2>Datos tratados</h2>
+      <p>
+        Podemos tratar telefono, origen del QR, consentimiento, actividad comercial
+        y datos operativos necesarios para prestar el servicio al restaurante.
+      </p>
+      <h2>Finalidad</h2>
+      <p>
+        Gestionar altas, bajas, comunicaciones promocionales y medicion basica del
+        rendimiento de las acciones comerciales del local.
+      </p>
+      <h2>Derechos</h2>
+      <p>
+        El usuario puede solicitar baja de comunicaciones y ejercer sus derechos de
+        acceso, rectificacion o supresion a traves del canal habilitado por el
+        restaurante responsable.
+      </p>
+      <h2>Contacto</h2>
+      <p>
+        Para consultas sobre privacidad o uso del servicio, utiliza el canal de
+        contacto del negocio que te dio acceso a la promocion.
+      </p>
+    </main>
+  </body>
+</html>`;
+}
+
+module.exports = {
+  renderMarketingLanding,
+  renderPrivacyPage,
+};

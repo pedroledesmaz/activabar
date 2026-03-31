@@ -3,6 +3,7 @@ const env = require("../../config/env");
 const { parseCookies } = require("../../../auth");
 const { appendSetCookie } = require("../../lib/http");
 const { escapeHtml, renderPage } = require("../../lib/html");
+const { renderMarketingLanding, renderPrivacyPage } = require("./public-site");
 const {
   buildCookie,
   buildClearedCookie,
@@ -944,13 +945,18 @@ async function loadRestaurantOrRedirect(slug, operator, res) {
 router.get("/", async (req, res, next) => {
   try {
     const session = await getWebSession(req);
-    if (session) {
-      return res.redirect("/app");
-    }
-    return res.redirect("/login");
+    return res.type("html").send(
+      renderMarketingLanding({
+        dashboardHref: session ? "/app" : "/login",
+      })
+    );
   } catch (error) {
     return next(error);
   }
+});
+
+router.get("/privacy", (_req, res) => {
+  res.type("html").send(renderPrivacyPage());
 });
 
 router.get("/login", (req, res) => {
