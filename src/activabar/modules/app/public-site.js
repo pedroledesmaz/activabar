@@ -28,9 +28,9 @@ function renderMarketingLanding({
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Serif:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="icon" type="image/jpeg" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="shortcut icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="apple-touch-icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="shortcut icon" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <meta name="theme-color" content="#101716" />
     <style>
       :root {
@@ -968,9 +968,9 @@ function renderPrivacyPage({ homeHref = "/" } = {}) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ActivaBar | Privacidad</title>
-    <link rel="icon" type="image/jpeg" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="shortcut icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="apple-touch-icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="shortcut icon" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <meta name="theme-color" content="#101716" />
     <style>
       :root {
@@ -1057,9 +1057,9 @@ function renderDemoRequestPage({
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ActivaBar | Solicitar demo</title>
-    <link rel="icon" type="image/jpeg" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="shortcut icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
-    <link rel="apple-touch-icon" href="${ACTIVABAR_PUBLIC_FAVICON_DATA_URI}" />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="shortcut icon" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
     <meta name="theme-color" content="#101716" />
     <style>
       :root {

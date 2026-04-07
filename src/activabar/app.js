@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const logger = require("./lib/logger");
 const { requestContext } = require("./middleware/request-context");
@@ -15,6 +16,7 @@ function createApp() {
   app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false, limit: "100kb" }));
   app.use(express.json({ limit: "100kb" }));
+  app.use("/assets", express.static(path.join(__dirname, "assets")));
   app.use(securityHeaders);
   app.use(requestContext);
 
