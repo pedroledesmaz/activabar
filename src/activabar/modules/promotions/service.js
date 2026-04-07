@@ -297,6 +297,51 @@ async function countEligibleLeadsForPromotion({ promotionId }) {
   return Number(row?.total || 0);
 }
 
+async function listRestaurantMessageLog(restaurantId, limit = null) {
+  const parsedLimit = Number.parseInt(limit, 10);
+  const hasLimit = Number.isFinite(parsedLimit) && parsedLimit > 0;
+  const limitClause = hasLimit ? "\n     LIMIT $2" : "";
+
+  return db.many(
+    `SELECT *
+     FROM (
+       SELECT
+         'welcome' AS channel_event,
+         l.phone_e164,
+         'Bienvenida' AS title,
+         'sent' AS status,
+         NULL::text AS provider_message_id,
+         NULL::text AS error,
+         l.claim_code_sent_at AS created_at,
+         l.claim_code AS reference_code,
+         l.source_qr
+       FROM leads l
+       WHERE l.restaurant_id = $1
+         AND l.deleted_at IS NULL
+         AND l.claim_code_sent_at IS NOT NULL
+
+       UNION ALL
+
+       SELECT
+         'promotion' AS channel_event,
+         l.phone_e164,
+         p.title,
+         d.status,
+         d.provider_message_id,
+         d.error,
+         d.created_at,
+         NULL::text AS reference_code,
+         l.source_qr
+       FROM promotion_deliveries d
+       JOIN promotions p ON p.id = d.promotion_id
+       JOIN leads l ON l.id = d.lead_id
+       WHERE p.restaurant_id = $1
+     ) timeline
+     ORDER BY created_at DESC${limitClause}`,
+    hasLimit ? [restaurantId, parsedLimit] : [restaurantId]
+  );
+}
+
 async function dispatchPromotion({ promotionId }) {
   if (activePromotionDispatches.has(promotionId)) {
     return { inProgress: true };
@@ -452,4 +497,5 @@ module.exports = {
   isPromotionDraft,
   countEligibleLeadsForPromotion,
   dispatchPromotion,
+  listRestaurantMessageLog,
 };

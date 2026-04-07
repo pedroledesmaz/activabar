@@ -16,6 +16,7 @@ const PUBLIC_RESTAURANT_SELECT = `
   whatsapp_cost_eur,
   twilio_whatsapp_from,
   twilio_sender_status,
+  qr_image_url,
   is_archived,
   archived_at,
   created_at
@@ -47,6 +48,7 @@ async function listRestaurants() {
         name,
         slug,
         default_reward,
+        qr_image_url,
         twilio_whatsapp_from,
         twilio_sender_status,
         is_archived,
@@ -156,6 +158,7 @@ async function updateRestaurantSettings(slug, input) {
   const promotionTemplate = String(input.promotionTemplate || "").trim() || null;
   const avgTicketEur = Number.parseFloat(input.avgTicketEur);
   const grossMarginPct = Number.parseFloat(input.grossMarginPct);
+  const qrImageUrl = String(input.qrImageUrl || "").trim() || null;
   const promoConversionPct = Number.parseFloat(input.promoConversionPct);
   const whatsappCostEur = Number.parseFloat(input.whatsappCostEur);
   const hasTwilioFieldsInInput = [
@@ -226,11 +229,12 @@ async function updateRestaurantSettings(slug, input) {
          gross_margin_pct = $6,
          promo_conversion_pct = $7,
          whatsapp_cost_eur = $8,
-         twilio_account_sid = $9,
-         twilio_auth_token = $10,
-         twilio_whatsapp_from = $11,
-         twilio_sender_status = $12
-     WHERE id = $13`,
+         qr_image_url = $9,
+         twilio_account_sid = $10,
+         twilio_auth_token = $11,
+         twilio_whatsapp_from = $12,
+         twilio_sender_status = $13
+     WHERE id = $14`,
     [
       name,
       defaultReward,
@@ -240,6 +244,7 @@ async function updateRestaurantSettings(slug, input) {
       Number.isFinite(grossMarginPct) ? grossMarginPct : null,
       Number.isFinite(promoConversionPct) ? promoConversionPct : null,
       Number.isFinite(whatsappCostEur) ? whatsappCostEur : null,
+      qrImageUrl,
       twilioAccountSid,
       twilioAuthToken,
       twilioWhatsappFrom,

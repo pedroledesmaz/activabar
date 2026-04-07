@@ -6,8 +6,20 @@ const { createApp } = require("./app");
 const { bootstrapAdmin } = require("./modules/auth/service");
 
 async function start() {
-  await applySchema();
-  await bootstrapAdmin();
+  const skipSchema = String(process.env.ACTIVABAR_SKIP_SCHEMA || "").trim().toLowerCase() === "true";
+  const skipBootstrap = String(process.env.ACTIVABAR_SKIP_BOOTSTRAP_ADMIN || "").trim().toLowerCase() === "true";
+
+  if (!skipSchema) {
+    await applySchema();
+  } else {
+    logger.warn("server.schema_skipped", { reason: "ACTIVABAR_SKIP_SCHEMA=true" });
+  }
+
+  if (!skipBootstrap) {
+    await bootstrapAdmin();
+  } else {
+    logger.warn("server.bootstrap_skipped", { reason: "ACTIVABAR_SKIP_BOOTSTRAP_ADMIN=true" });
+  }
 
   const app = createApp();
   const server = app.listen(env.port, () => {

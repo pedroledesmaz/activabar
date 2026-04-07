@@ -21,6 +21,9 @@ async function applySchema() {
   await db.query(
     "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS twilio_sender_status TEXT"
   );
+  await db.query(
+    "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS qr_image_url TEXT"
+  );
   await db.query(`
     CREATE TABLE IF NOT EXISTS operator_restaurant_access (
       id BIGSERIAL PRIMARY KEY,

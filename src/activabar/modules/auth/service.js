@@ -240,6 +240,12 @@ async function createRestaurantManager({ restaurantId, email, password }) {
     }
 
     await tx.query(
+      `DELETE FROM operator_restaurant_access
+       WHERE operator_id = $1`,
+      [operatorId]
+    );
+
+    await tx.query(
       `INSERT INTO operator_restaurant_access (operator_id, restaurant_id)
        VALUES ($1, $2)
        ON CONFLICT (operator_id, restaurant_id) DO NOTHING`,
