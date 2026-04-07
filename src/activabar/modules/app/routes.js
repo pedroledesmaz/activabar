@@ -234,7 +234,12 @@ function renderMiniNavLink({ label, href, active = false }) {
 
 function isAppHostname(hostname = "") {
   const value = String(hostname || "").toLowerCase();
-  return value === "app.activabar.es" || value.startsWith("app.");
+  return (
+    value === "app.activabar.es" ||
+    value.startsWith("app.") ||
+    value === "activabar-api.onrender.com" ||
+    value.endsWith(".onrender.com")
+  );
 }
 
 function renderLoginPage(errorMessage = "") {
