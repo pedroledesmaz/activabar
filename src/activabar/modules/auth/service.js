@@ -191,6 +191,74 @@ async function listRestaurantManagers(restaurantId) {
   );
 }
 
+async function listAdminOperators() {
+  return db.many(
+    `SELECT id, email, role, is_active, created_at
+     FROM operators
+     WHERE role = 'admin'
+     ORDER BY created_at ASC, email ASC`
+  );
+}
+
+async function createAdminOperator({ email, password }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const cleanPassword = String(password || "");
+  if (!normalizedEmail || !cleanPassword) {
+    const error = new Error("Email y password son obligatorios.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return db.tx(async (tx) => {
+    const existing = await tx.one(
+      `SELECT id, email, role
+       FROM operators
+       WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    const passwordHash = hashPassword(cleanPassword);
+    let operatorId;
+    let created = false;
+    let promoted = false;
+
+    if (existing) {
+      operatorId = existing.id;
+      promoted = existing.role !== "admin";
+      await tx.query(
+        `UPDATE operators
+         SET password_hash = $1,
+             role = 'admin',
+             is_active = 1
+         WHERE id = $2`,
+        [passwordHash, operatorId]
+      );
+    } else {
+      const inserted = await tx.one(
+        `INSERT INTO operators (email, password_hash, role, is_active)
+         VALUES ($1, $2, 'admin', 1)
+         RETURNING id`,
+        [normalizedEmail, passwordHash]
+      );
+      operatorId = inserted.id;
+      created = true;
+    }
+
+    await tx.query(
+      `DELETE FROM operator_restaurant_access
+       WHERE operator_id = $1`,
+      [operatorId]
+    );
+
+    return {
+      created,
+      promoted,
+      email: normalizedEmail,
+      operatorId,
+    };
+  });
+}
+
 async function createRestaurantManager({ restaurantId, email, password }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
@@ -261,6 +329,65 @@ async function createRestaurantManager({ restaurantId, email, password }) {
   });
 }
 
+async function deleteRestaurantManager({ restaurantId, operatorId }) {
+  const cleanRestaurantId = Number(restaurantId);
+  const cleanOperatorId = Number(operatorId);
+  if (!Number.isInteger(cleanRestaurantId) || !Number.isInteger(cleanOperatorId)) {
+    const error = new Error("Manager no válido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return db.tx(async (tx) => {
+    const existing = await tx.one(
+      `SELECT operators.id, operators.email, operators.role
+       FROM operator_restaurant_access
+       JOIN operators ON operators.id = operator_restaurant_access.operator_id
+       WHERE operator_restaurant_access.restaurant_id = $1
+         AND operator_restaurant_access.operator_id = $2`,
+      [cleanRestaurantId, cleanOperatorId]
+    );
+
+    if (!existing) {
+      const error = new Error("Manager no encontrado en este bar.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (existing.role !== "manager") {
+      const error = new Error("Solo se pueden borrar cuentas manager.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await tx.query(
+      `DELETE FROM operator_restaurant_access
+       WHERE operator_id = $1`,
+      [cleanOperatorId]
+    );
+
+    await tx.query(
+      `UPDATE operators
+       SET is_active = 0
+       WHERE id = $1`,
+      [cleanOperatorId]
+    );
+
+    await tx.query(
+      `UPDATE sessions
+       SET revoked_at = CURRENT_TIMESTAMP
+       WHERE operator_id = $1
+         AND revoked_at IS NULL`,
+      [cleanOperatorId]
+    );
+
+    return {
+      email: existing.email,
+      operatorId: cleanOperatorId,
+    };
+  });
+}
+
 async function bootstrapAdmin() {
   if (env.bootstrapAdminEmail && env.bootstrapAdminPassword) {
     const result = await upsertAdmin(
@@ -291,7 +418,10 @@ module.exports = {
   upsertAdmin,
   canManageAllRestaurants,
   canAccessRestaurant,
+  listAdminOperators,
+  createAdminOperator,
   listRestaurantManagers,
   createRestaurantManager,
+  deleteRestaurantManager,
   bootstrapAdmin,
 };

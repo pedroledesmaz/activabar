@@ -19,8 +19,11 @@ const {
   logout,
   canManageAllRestaurants,
   canAccessRestaurant,
+  listAdminOperators,
+  createAdminOperator,
   listRestaurantManagers,
   createRestaurantManager,
+  deleteRestaurantManager,
 } = require("../auth/service");
 const {
   listRestaurants,
@@ -439,7 +442,7 @@ function promotionActionButtons({ restaurant, promotion, canManage = true }) {
   return items.join("");
 }
 
-function renderAppPage({ operator, restaurants, restaurantSummaries, errorMessage, successMessage, view = "dashboard", createMode = false }) {
+function renderAppPage({ operator, restaurants, restaurantSummaries, admins = [], errorMessage, successMessage, view = "dashboard", createMode = false }) {
   const errorBanner = errorMessage ? `<div class="banner error">${escapeHtml(errorMessage)}</div>` : "";
   const successBanner = successMessage ? `<div class="banner ok">${escapeHtml(successMessage)}</div>` : "";
   const canManage = canManageAllRestaurants(operator);
@@ -572,6 +575,74 @@ function renderAppPage({ operator, restaurants, restaurantSummaries, errorMessag
     `
     : "";
 
+  const adminRows = admins.length
+    ? admins
+        .map(
+          (admin) => `
+            <tr>
+              <td>
+                <div class="row-meta-stack">
+                  <strong>${escapeHtml(admin.email)}</strong>
+                  <span class="muted">${escapeHtml(admin.role)}</span>
+                </div>
+              </td>
+              <td>${Number(admin.is_active) === 1 ? renderPill("Activo", "ok") : renderPill("Inactivo", "warn")}</td>
+              <td>${escapeHtml(formatDateTime(admin.created_at))}</td>
+            </tr>
+          `
+        )
+        .join("")
+    : `
+      <tr>
+        <td colspan="3">
+          <div class="empty-shell"><p>No hay admins globales registrados.</p></div>
+        </td>
+      </tr>
+    `;
+
+  const adminBlock = canManage
+    ? `
+      <div class="grid-7-5">
+        <section class="surface-card stack">
+          <div class="section-row">
+            <div class="section-header">
+              <p>Acceso global</p>
+              <h2>Crear administrador</h2>
+            </div>
+            ${renderPill("Solo admin", "warn")}
+          </div>
+          <p class="muted">Crea una cuenta admin global para futuras tareas de soporte, gestión o respaldo del panel.</p>
+          <form method="post" action="/app/admins" class="grid">
+            <div><label for="adminEmail">Email</label><input id="adminEmail" name="email" type="email" required /></div>
+            <div><label for="adminPassword">Contraseña inicial</label><input id="adminPassword" name="password" type="password" required /></div>
+            <button type="submit" class="full">Crear administrador</button>
+          </form>
+        </section>
+        <section class="surface-card stack">
+          <div class="section-row">
+            <div class="section-header">
+              <p>Admins globales</p>
+              <h2>Accesos del sistema</h2>
+            </div>
+            ${renderPill(`${formatInteger(admins.length)} admins`, admins.length ? "ok" : "neutral")}
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Admin</th>
+                  <th>Estado</th>
+                  <th>Alta</th>
+                </tr>
+              </thead>
+              <tbody>${adminRows}</tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    `
+    : "";
+
   const dashboardContent = `
     <section class="kpi-grid stitch-kpi-grid">
       <article class="metric-card"><p class="muted">Bares</p><div class="value">${formatInteger(restaurants.length)}</div><div class="delta">Red visible</div></article>
@@ -609,6 +680,7 @@ function renderAppPage({ operator, restaurants, restaurantSummaries, errorMessag
         ${canManage ? `<a class="btn secondary full" href="${createHref}">Añadir Nuevo Bar</a>` : ""}
       </section>
     </div>
+    ${adminBlock}
   `;
 
   const barsContent = `
@@ -1696,13 +1768,18 @@ function renderSettingsSection({ restaurant, operator, managers, messageLog }) {
               </td>
               <td>${Number(manager.is_active) === 1 ? renderPill("Activo", "ok") : renderPill("Inactivo", "warn")}</td>
               <td>${escapeHtml(formatDateTime(manager.created_at))}</td>
+              <td>
+                <form method="post" action="${restaurantBasePath(restaurant.slug)}/managers/${manager.id}/delete" class="inline">
+                  <button type="submit" class="secondary">Borrar</button>
+                </form>
+              </td>
             </tr>
           `
         )
         .join("")
     : `
       <tr>
-        <td colspan="3">
+        <td colspan="4">
           <div class="empty-shell"><p>No hay managers asignados a este bar.</p></div>
         </td>
       </tr>
@@ -1921,6 +1998,7 @@ function renderSettingsSection({ restaurant, operator, managers, messageLog }) {
                     <th>Manager</th>
                     <th>Estado</th>
                     <th>Asignado</th>
+                    <th>Accion</th>
                   </tr>
                 </thead>
                 <tbody>${managerRows}</tbody>
@@ -2146,6 +2224,7 @@ router.get("/app", requireWebAuth, async (req, res, next) => {
         summary: await getRestaurantSummary(restaurant.id),
       }))
     );
+    const admins = canManageAllRestaurants(req.auth) ? await listAdminOperators() : [];
     const view = String(req.query.view || "dashboard").trim().toLowerCase() === "bars" ? "bars" : "dashboard";
     const createMode = String(req.query.create || "").trim() === "1";
     return res.type("html").send(
@@ -2153,6 +2232,7 @@ router.get("/app", requireWebAuth, async (req, res, next) => {
         operator: req.auth,
         restaurants,
         restaurantSummaries,
+        admins,
         errorMessage: String(req.query.error || "").trim(),
         successMessage: String(req.query.success || "").trim(),
         view,
@@ -2161,6 +2241,33 @@ router.get("/app", requireWebAuth, async (req, res, next) => {
     );
   } catch (error) {
     return next(error);
+  }
+});
+
+router.post("/app/admins", requireWebAuth, async (req, res) => {
+  try {
+    if (!canManageAllRestaurants(req.auth)) {
+      return res.redirect("/app?error=Solo%20el%20admin%20puede%20crear%20administradores.");
+    }
+    const result = await createAdminOperator({
+      email: req.body.email,
+      password: req.body.password,
+    });
+    return res.redirect(
+      `/app?success=${encodeURIComponent(
+        result.created
+          ? `Administrador creado: ${result.email}`
+          : result.promoted
+            ? `Cuenta promovida a admin: ${result.email}`
+            : `Administrador actualizado: ${result.email}`
+      )}`
+    );
+  } catch (error) {
+    return res.redirect(
+      `/app?error=${encodeURIComponent(
+        error.statusCode ? error.message : "No se pudo crear el administrador."
+      )}`
+    );
   }
 });
 
@@ -2681,6 +2788,33 @@ router.post("/app/restaurants/:slug/settings", requireWebAuth, async (req, res) 
     return res.redirect(
       `${restaurantSectionPath(req.params.slug, "settings")}?error=${encodeURIComponent(
         error.statusCode ? error.message : "No se pudo guardar la configuración."
+      )}`
+    );
+  }
+});
+
+router.post("/app/restaurants/:slug/managers/:operatorId/delete", requireWebAuth, async (req, res) => {
+  try {
+    if (!canManageAllRestaurants(req.auth)) {
+      return res.redirect("/app?error=Solo%20el%20admin%20puede%20borrar%20managers.");
+    }
+    const restaurant = await getRestaurantBySlugWithSecrets(req.params.slug);
+    if (!restaurant) {
+      return res.redirect("/app?error=Restaurante%20no%20encontrado.");
+    }
+    const result = await deleteRestaurantManager({
+      restaurantId: restaurant.id,
+      operatorId: req.params.operatorId,
+    });
+    return res.redirect(
+      `${restaurantSectionPath(restaurant.slug, "settings")}?success=${encodeURIComponent(
+        `Manager borrado: ${result.email}`
+      )}`
+    );
+  } catch (error) {
+    return res.redirect(
+      `${restaurantSectionPath(req.params.slug, "settings")}?error=${encodeURIComponent(
+        error.statusCode ? error.message : "No se pudo borrar el manager."
       )}`
     );
   }
