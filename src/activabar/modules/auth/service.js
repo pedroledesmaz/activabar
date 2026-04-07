@@ -259,6 +259,83 @@ async function createAdminOperator({ email, password }) {
   });
 }
 
+
+async function deleteAdminOperator({ operatorId, currentOperatorId }) {
+  const cleanOperatorId = Number(operatorId);
+  const cleanCurrentOperatorId = Number(currentOperatorId);
+  if (!Number.isInteger(cleanOperatorId) || !Number.isInteger(cleanCurrentOperatorId)) {
+    const error = new Error("Administrador no valido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (cleanOperatorId == cleanCurrentOperatorId) {
+    const error = new Error("No puedes borrar tu propia cuenta admin.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return db.tx(async (tx) => {
+    const existing = await tx.one(
+      `SELECT id, email, role, is_active
+       FROM operators
+       WHERE id = $1`,
+      [cleanOperatorId]
+    );
+
+    if (!existing) {
+      const error = new Error("Administrador no encontrado.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (existing.role !== "admin") {
+      const error = new Error("Solo se pueden borrar cuentas admin.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const activeAdmins = await tx.one(
+      `SELECT COUNT(*) AS count
+       FROM operators
+       WHERE role = 'admin'
+         AND is_active = 1`
+    );
+
+    if (Number(existing.is_active) === 1 && Number(activeAdmins.count || 0) <= 1) {
+      const error = new Error("No puedes borrar el ultimo admin activo del sistema.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await tx.query(
+      `DELETE FROM operator_restaurant_access
+       WHERE operator_id = $1`,
+      [cleanOperatorId]
+    );
+
+    await tx.query(
+      `UPDATE operators
+       SET is_active = 0
+       WHERE id = $1`,
+      [cleanOperatorId]
+    );
+
+    await tx.query(
+      `UPDATE sessions
+       SET revoked_at = CURRENT_TIMESTAMP
+       WHERE operator_id = $1
+         AND revoked_at IS NULL`,
+      [cleanOperatorId]
+    );
+
+    return {
+      email: existing.email,
+      operatorId: cleanOperatorId,
+    };
+  });
+}
+
 async function createRestaurantManager({ restaurantId, email, password }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
@@ -420,6 +497,7 @@ module.exports = {
   canAccessRestaurant,
   listAdminOperators,
   createAdminOperator,
+  deleteAdminOperator,
   listRestaurantManagers,
   createRestaurantManager,
   deleteRestaurantManager,

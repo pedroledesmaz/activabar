@@ -21,6 +21,7 @@ const {
   canAccessRestaurant,
   listAdminOperators,
   createAdminOperator,
+  deleteAdminOperator,
   listRestaurantManagers,
   createRestaurantManager,
   deleteRestaurantManager,
@@ -577,8 +578,9 @@ function renderAppPage({ operator, restaurants, restaurantSummaries, admins = []
 
   const adminRows = admins.length
     ? admins
-        .map(
-          (admin) => `
+        .map((admin) => {
+          const canDeleteAdmin = Number(admin.id) !== Number(operator.operator_id || operator.id);
+          return `
             <tr>
               <td>
                 <div class="row-meta-stack">
@@ -588,13 +590,14 @@ function renderAppPage({ operator, restaurants, restaurantSummaries, admins = []
               </td>
               <td>${Number(admin.is_active) === 1 ? renderPill("Activo", "ok") : renderPill("Inactivo", "warn")}</td>
               <td>${escapeHtml(formatDateTime(admin.created_at))}</td>
+              <td>${canDeleteAdmin ? `<form method="post" action="/app/admins/${admin.id}/delete" class="inline"><button type="submit" class="secondary">Borrar</button></form>` : renderPill("Tu cuenta", "neutral")}</td>
             </tr>
-          `
-        )
+          `;
+        })
         .join("")
     : `
       <tr>
-        <td colspan="3">
+        <td colspan="4">
           <div class="empty-shell"><p>No hay admins globales registrados.</p></div>
         </td>
       </tr>
@@ -633,6 +636,7 @@ function renderAppPage({ operator, restaurants, restaurantSummaries, admins = []
                   <th>Admin</th>
                   <th>Estado</th>
                   <th>Alta</th>
+                  <th>Accion</th>
                 </tr>
               </thead>
               <tbody>${adminRows}</tbody>
@@ -2266,6 +2270,28 @@ router.post("/app/admins", requireWebAuth, async (req, res) => {
     return res.redirect(
       `/app?error=${encodeURIComponent(
         error.statusCode ? error.message : "No se pudo crear el administrador."
+      )}`
+    );
+  }
+});
+
+
+router.post("/app/admins/:operatorId/delete", requireWebAuth, async (req, res) => {
+  try {
+    if (!canManageAllRestaurants(req.auth)) {
+      return res.redirect("/app?error=Solo%20el%20admin%20puede%20borrar%20administradores.");
+    }
+    const result = await deleteAdminOperator({
+      operatorId: req.params.operatorId,
+      currentOperatorId: req.auth.operator_id || req.auth.id,
+    });
+    return res.redirect(
+      `/app?success=${encodeURIComponent(`Administrador borrado: ${result.email}`)}`
+    );
+  } catch (error) {
+    return res.redirect(
+      `/app?error=${encodeURIComponent(
+        error.statusCode ? error.message : "No se pudo borrar el administrador."
       )}`
     );
   }
